@@ -475,7 +475,7 @@ class CRUDOperationsTester:
             print("   ✅ Database ping successful")
             
             # Test database name
-            current_db = self.mongo_client.get_database().name
+            current_db = self.db.name
             print(f"   Current database: {current_db}")
             
             # List all collections and their counts

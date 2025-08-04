@@ -1833,10 +1833,17 @@ async def upload_template_document(
         # Read file content
         file_content = await file.read()
         
+        # DEBUG: File type check
+        print(f"DEBUG: Upload filename: {file.filename}")
+        print(f"DEBUG: Filename ends with .pdf: {file.filename.endswith('.pdf')}")
+        print(f"DEBUG: Filename ends with .docx: {file.filename.endswith('.docx')}")
+        
         # Choose parser based on file type
         if file.filename.endswith('.pdf'):
+            print("DEBUG: Using PDF parser")
             template_data = parse_pdf_document_dynamic(file_content, file.filename)
         else:
+            print("DEBUG: Using Word parser")
             template_data = parse_word_document(file_content, file.filename)
         
         # DEBUG: Check what fields are in template_data

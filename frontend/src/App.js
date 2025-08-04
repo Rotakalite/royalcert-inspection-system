@@ -2998,27 +2998,8 @@ const DynamicInspectionForm = ({ inspectionId, onBack, onSave }) => {
           </div>
         </div>
       ))}
-      if (data.existing_data && data.existing_data.form_results) {
-        const results = {};
-        data.existing_data.form_results.forEach(result => {
-          results[result.item_id] = {
-            value: result.value,
-            comment: result.comment || ''
-          };
-        });
-        setFormResults(results);
-      }
-      
-      // Set general and equipment info
-      setGeneralInfo(data.existing_data?.general_info || {});
-      setEquipmentInfo(data.existing_data?.equipment_info || {});
-      
-      setLoading(false);
-    } catch (error) {
-      console.error('Form data error:', error);
-      setLoading(false);
-    }
-  };
+
+      {/* Phase 6.2: General Information Section */}
 
   const handleResultChange = (itemId, field, value) => {
     setFormResults(prev => ({

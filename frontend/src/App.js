@@ -482,6 +482,8 @@ const AdminDashboard = () => {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [showTemplateBuilder, setShowTemplateBuilder] = useState(false);
+  const [showTemplatePreview, setShowTemplatePreview] = useState(false);
+  const [previewTemplate, setPreviewTemplate] = useState(null);
 
   useEffect(() => {
     fetchStats();

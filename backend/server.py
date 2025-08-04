@@ -12,6 +12,9 @@ import uuid
 import logging
 import pandas as pd
 import io
+from docx import Document
+from docx.shared import Inches
+import re
 from dotenv import load_dotenv
 
 # Load environment variables

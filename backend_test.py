@@ -2241,25 +2241,278 @@ class TableIterationFixTester:
         
         return test_results
 
+class InspectorFormEndpointTester:
+    """
+    MANUEL TEST: Inspector form endpoint 53 soru sorunu
+    Tests the inspector form endpoint to verify it returns all 53 control items
+    """
+    def __init__(self):
+        self.session = requests.Session()
+        self.token = None
+        self.user_info = None
+        self.inspections = []
+        
+    def authenticate(self):
+        """Authenticate with admin credentials"""
+        print("🔐 Testing Authentication...")
+        
+        login_data = {
+            "username": ADMIN_USERNAME,
+            "password": ADMIN_PASSWORD
+        }
+        
+        try:
+            response = self.session.post(f"{BACKEND_URL}/auth/login", json=login_data)
+            print(f"Login Response Status: {response.status_code}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.token = data["access_token"]
+                self.user_info = data["user"]
+                
+                # Set authorization header for future requests
+                self.session.headers.update({
+                    "Authorization": f"Bearer {self.token}"
+                })
+                
+                print(f"✅ Authentication successful")
+                print(f"   User: {self.user_info['full_name']} ({self.user_info['role']})")
+                return True
+            else:
+                print(f"❌ Authentication failed: {response.text}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Authentication error: {str(e)}")
+            return False
+
+    def get_inspections(self):
+        """Get all inspections to find an inspection ID"""
+        print("\n📋 Step 1: GET /api/inspections - Getting all inspections...")
+        
+        try:
+            response = self.session.get(f"{BACKEND_URL}/inspections")
+            print(f"GET /api/inspections Status: {response.status_code}")
+            
+            if response.status_code == 200:
+                inspections_data = response.json()
+                self.inspections = inspections_data
+                print(f"✅ Found {len(inspections_data)} total inspections")
+                
+                # Show inspection details
+                for i, inspection in enumerate(inspections_data, 1):
+                    inspection_id = inspection.get('id', 'N/A')
+                    status = inspection.get('status', 'N/A')
+                    equipment_type = inspection.get('equipment_info', {}).get('equipment_type', 'N/A')
+                    inspector_id = inspection.get('inspector_id', 'N/A')
+                    
+                    print(f"   {i}. ID: {inspection_id[:8]}..., Status: {status}, Equipment: {equipment_type}, Inspector: {inspector_id[:8] if inspector_id else 'None'}...")
+                
+                return True, inspections_data
+            else:
+                print(f"❌ Failed to get inspections: {response.text}")
+                return False, []
+                
+        except Exception as e:
+            print(f"❌ Get inspections error: {str(e)}")
+            return False, []
+
+    def test_inspection_form_endpoint(self, inspection_id):
+        """Test the inspection form endpoint for a specific inspection"""
+        print(f"\n🎯 Step 3: GET /api/inspections/{inspection_id[:8]}.../form - Testing form endpoint...")
+        
+        try:
+            response = self.session.get(f"{BACKEND_URL}/inspections/{inspection_id}/form")
+            print(f"GET /api/inspections/{inspection_id[:8]}.../form Status: {response.status_code}")
+            
+            if response.status_code == 200:
+                form_data = response.json()
+                print("✅ Form endpoint responded successfully")
+                
+                # Extract control items
+                control_items = form_data.get('control_items', [])
+                equipment_type = form_data.get('equipment_type', 'N/A')
+                customer_name = form_data.get('customer_name', 'N/A')
+                
+                print(f"   Equipment Type: {equipment_type}")
+                print(f"   Customer Name: {customer_name}")
+                print(f"   Control Items Count: {len(control_items)}")
+                
+                # CRITICAL DEBUG: Check if we have all 53 items
+                print(f"\n🔍 CRITICAL DEBUG: Control Items Analysis")
+                print(f"   Total control_items returned: {len(control_items)}")
+                
+                if control_items:
+                    # Get item IDs and sort them
+                    item_ids = [item.get('id', 0) for item in control_items]
+                    item_ids.sort()
+                    
+                    min_id = min(item_ids) if item_ids else 0
+                    max_id = max(item_ids) if item_ids else 0
+                    
+                    print(f"   Item ID range: {min_id} to {max_id}")
+                    print(f"   Expected range: 1 to 53")
+                    
+                    # Check for missing items in range 1-53
+                    expected_ids = set(range(1, 54))  # 1 to 53
+                    actual_ids = set(item_ids)
+                    missing_ids = expected_ids - actual_ids
+                    extra_ids = actual_ids - expected_ids
+                    
+                    print(f"   Missing IDs (1-53): {sorted(missing_ids) if missing_ids else 'None'}")
+                    print(f"   Extra IDs (>53): {sorted(extra_ids) if extra_ids else 'None'}")
+                    
+                    # Show first 10 and last 10 items
+                    print(f"\n   First 10 control items:")
+                    for i, item in enumerate(control_items[:10], 1):
+                        item_id = item.get('id', 'N/A')
+                        text = item.get('text', 'N/A')
+                        category = item.get('category', 'N/A')
+                        print(f"     {i:2d}. ID: {item_id:3d} | Cat: {category} | Text: {text[:50]}...")
+                    
+                    if len(control_items) > 10:
+                        print(f"\n   Last 10 control items:")
+                        for i, item in enumerate(control_items[-10:], len(control_items)-9):
+                            item_id = item.get('id', 'N/A')
+                            text = item.get('text', 'N/A')
+                            category = item.get('category', 'N/A')
+                            print(f"     {i:2d}. ID: {item_id:3d} | Cat: {category} | Text: {text[:50]}...")
+                    
+                    # Check specifically for items 49-53
+                    high_items = [item for item in control_items if item.get('id', 0) >= 49]
+                    print(f"\n   Items with ID >= 49: {len(high_items)}")
+                    for item in high_items:
+                        item_id = item.get('id', 'N/A')
+                        text = item.get('text', 'N/A')
+                        category = item.get('category', 'N/A')
+                        print(f"     ID: {item_id:3d} | Cat: {category} | Text: {text[:60]}...")
+                
+                # Final assessment
+                total_items = len(control_items)
+                has_all_53 = total_items >= 53 and len(missing_ids) == 0
+                
+                print(f"\n🎯 FINAL ASSESSMENT:")
+                print(f"   Total items returned: {total_items}")
+                print(f"   Expected: 53 items")
+                print(f"   Has all 53 items: {'✅ YES' if has_all_53 else '❌ NO'}")
+                
+                if not has_all_53:
+                    print(f"   Missing items: {len(missing_ids)} ({sorted(missing_ids) if missing_ids else 'None'})")
+                
+                return True, {
+                    'total_items': total_items,
+                    'has_all_53': has_all_53,
+                    'missing_ids': sorted(missing_ids) if missing_ids else [],
+                    'equipment_type': equipment_type,
+                    'control_items': control_items
+                }
+            else:
+                print(f"❌ Form endpoint failed: {response.text}")
+                return False, None
+                
+        except Exception as e:
+            print(f"❌ Form endpoint error: {str(e)}")
+            return False, None
+
+    def run_inspector_form_test(self):
+        """Run the complete inspector form endpoint test"""
+        print("🚀 Starting Inspector Form Endpoint Test - 53 Control Items Check")
+        print("=" * 80)
+        
+        test_results = {}
+        
+        # Step 1: Authentication
+        test_results['authentication'] = self.authenticate()
+        if not test_results['authentication']:
+            print("\n❌ Cannot proceed without authentication")
+            return test_results
+        
+        # Step 2: Get inspections
+        success, inspections = self.get_inspections()
+        test_results['get_inspections'] = success
+        
+        if not success or not inspections:
+            print("\n❌ No inspections found to test")
+            return test_results
+        
+        # Step 2: Find a suitable inspection ID
+        print(f"\n🔍 Step 2: Finding suitable inspection ID...")
+        
+        # Prefer inspections with status 'beklemede' or 'devam_ediyor'
+        suitable_inspections = [
+            insp for insp in inspections 
+            if insp.get('status') in ['beklemede', 'devam_ediyor', 'rapor_yazildi']
+        ]
+        
+        if not suitable_inspections:
+            # Use any inspection if no suitable ones found
+            suitable_inspections = inspections
+        
+        selected_inspection = suitable_inspections[0]
+        inspection_id = selected_inspection.get('id')
+        equipment_type = selected_inspection.get('equipment_info', {}).get('equipment_type', 'N/A')
+        status = selected_inspection.get('status', 'N/A')
+        
+        print(f"✅ Selected inspection: {inspection_id[:8]}... (Equipment: {equipment_type}, Status: {status})")
+        
+        # Step 3: Test the form endpoint
+        success, form_results = self.test_inspection_form_endpoint(inspection_id)
+        test_results['form_endpoint'] = success
+        test_results['form_results'] = form_results
+        
+        # Step 4: Check debug logs (simulated - we can't access actual logs)
+        print(f"\n📋 Step 4: Debug logs check (CRITICAL DEBUG messages)")
+        print("   Looking for 'CRITICAL DEBUG' messages in backend logs...")
+        print("   (Note: Actual log checking would require backend log access)")
+        
+        # Final Summary
+        print("\n" + "=" * 80)
+        print("📋 INSPECTOR FORM ENDPOINT TEST SUMMARY")
+        print("=" * 80)
+        
+        if form_results:
+            total_items = form_results.get('total_items', 0)
+            has_all_53 = form_results.get('has_all_53', False)
+            missing_ids = form_results.get('missing_ids', [])
+            equipment_type = form_results.get('equipment_type', 'N/A')
+            
+            print(f"Equipment Type: {equipment_type}")
+            print(f"Total Control Items: {total_items}")
+            print(f"Expected: 53 items")
+            print(f"Has All 53 Items: {'✅ YES' if has_all_53 else '❌ NO'}")
+            
+            if missing_ids:
+                print(f"Missing Item IDs: {missing_ids}")
+            
+            # Answer the user's question
+            print(f"\n🎯 ANSWER TO USER QUESTION:")
+            print(f"Inspector form endpoint düzgün çalışıyor mu? {'✅ EVET' if has_all_53 else '❌ HAYIR'}")
+            
+            if has_all_53:
+                print(f"   ✅ Backend tam 53 kontrol kriteri döndürüyor")
+                print(f"   ✅ Endpoint düzgün çalışıyor")
+            else:
+                print(f"   ❌ Backend sadece {total_items} kontrol kriteri döndürüyor")
+                print(f"   ❌ {len(missing_ids)} kontrol kriteri eksik: {missing_ids}")
+                print(f"   ❌ Endpoint tam çalışmıyor")
+        else:
+            print("❌ Form endpoint test failed")
+            print("🎯 ANSWER: ❌ HAYIR - Endpoint çalışmıyor")
+        
+        return test_results
+
 if __name__ == "__main__":
     print("🚀 RoyalCert Backend API Testing Suite")
     print("=" * 80)
     
-    # Run Table Iteration Fix Test - PRIORITY TEST
-    print("\n🔧 PRIORITY TEST: TABLE ITERATION FIX - 49/49 KONTROL KRİTERİ")
+    # MANUEL TEST: Inspector form endpoint 53 soru sorunu
+    print("\n🔧 MANUEL TEST: INSPECTOR FORM ENDPOINT - 53 CONTROL ITEMS CHECK")
     print("=" * 80)
     
-    table_fix_tester = TableIterationFixTester()
-    table_fix_results = table_fix_tester.run_table_iteration_fix_test()
+    inspector_form_tester = InspectorFormEndpointTester()
+    inspector_form_results = inspector_form_tester.run_inspector_form_test()
     
-    # Final Overall Summary
-    print("\n" + "=" * 80)
-    print("🎯 OVERALL TESTING SUMMARY")
-    print("=" * 80)
-    
-    print("Table Iteration Fix Test:", "✅ PASS" if table_fix_results.get('exact_49_match') else "❌ FAIL")
-    
-    print("\n🎉 Testing completed!")
+    print("\n🎉 Manuel test completed!")
 
 class RoyalCertPDFReportingTester:
     def __init__(self):

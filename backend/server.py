@@ -1398,114 +1398,156 @@ def parse_word_document(file_content: bytes, filename: str) -> dict:
         print(f"Error parsing Word document {filename}: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Failed to parse Word document: {str(e)}")
 
-def parse_universal_template_structure(text: str, tables: list, equipment_type: str) -> dict:
-    """Parse universal template structure from Word document text and tables - BIREBIR KOPYALA!"""
+def parse_pdf_document(file_content: bytes, filename: str) -> dict:
+    """Parse PDF document to extract control items and template structure"""
     
-    print(f"DEBUG: Starting universal parsing for {equipment_type}")
+    print(f"DEBUG: Starting PDF parsing for {filename}")
     
-    # Initialize template structure with placeholder functions
-    structure = {
-        "general_info": {},  
-        "measurement_devices": [],  
-        "equipment_info": {},  
-        "test_values": {},  
-        "control_items": [],  # Will be populated below
-        "categories": {},
-        "test_experiments": [],  
-        "defect_explanations": "",  
-        "notes": "",  
-        "result_opinion": "",  
-        "inspector_info": {},  
-        "company_official": {}  
-    }
+    # Determine equipment type from filename
+    filename_upper = filename.upper()
+    equipment_type = "UNKNOWN"
+    template_type = "FORM"
     
-    # BIREBIR KOPYALA - Extract control items WITHOUT ANY FILTERING!
+    if "FORKLIFT" in filename_upper or "FORKLIFT" in filename_upper:
+        equipment_type = "FORKLIFT"
+    elif "CARASKAL" in filename_upper:
+        equipment_type = "CARASKAL"
+    elif "ISKELE" in filename_upper or "İSKELE" in filename_upper:
+        equipment_type = "ISKELE"
+    elif "VINC" in filename_upper or "VİNÇ" in filename_upper:
+        equipment_type = "VINC"
+    elif "ASANSÖR" in filename_upper or "ASANSOR" in filename_upper:
+        equipment_type = "ASANSÖR"
+    
+    # Determine template type
+    if "RAPOR" in filename_upper or "REPORT" in filename_upper:
+        template_type = "REPORT"
+    else:
+        template_type = "FORM"
+        template_name = f"{equipment_type} MUAYENE FORMU"
+    
+    if template_type == "REPORT":
+        template_name = f"{equipment_type} MUAYENE RAPORU"
+    else:
+        template_name = f"{equipment_type} MUAYENE FORMU"
+    
+    # Extract text from PDF
+    try:
+        text_content = ""
+        
+        # Method 1: Try pdfplumber (more reliable for tables)
+        try:
+            with pdfplumber.open(io.BytesIO(file_content)) as pdf:
+                for page in pdf.pages:
+                    page_text = page.extract_text()
+                    if page_text:
+                        text_content += page_text + "\n"
+                    
+                    # Extract tables if any
+                    tables = page.extract_tables()
+                    for table in tables:
+                        for row in table:
+                            if row:
+                                text_content += " | ".join([cell or "" for cell in row]) + "\n"
+            
+            print(f"DEBUG: pdfplumber extracted {len(text_content)} characters")
+        
+        except Exception as e:
+            print(f"DEBUG: pdfplumber failed: {e}, trying PyPDF2")
+            
+            # Method 2: Fallback to PyPDF2
+            pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_content))
+            for page in pdf_reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text_content += page_text + "\n"
+            
+            print(f"DEBUG: PyPDF2 extracted {len(text_content)} characters")
+    
+    except Exception as e:
+        print(f"DEBUG: PDF text extraction failed: {e}")
+        text_content = ""
+    
+    if not text_content:
+        raise ValueError("PDF'den metin çıkarılamadı")
+    
+    # Parse control items from extracted text
     control_items = []
-    unique_items = {}  # Prevent duplicates only
+    unique_items = {}
     
-    # Extract from tables directly - NO FILTERING
-    for table_data in tables:  # table_data is list of rows (each row is list of cells)
-        for row_data in table_data:  # row_data is list of cell texts
-            for cell_text in row_data:  # cell_text is string
-                cell_text = cell_text.strip()
-                if cell_text:
-                    # Check if it's a numbered item
-                    import re
-                    match = re.match(r'^(\d+)\.\s*(.+)', cell_text)
-                    if match:
-                        item_number = int(match.group(1))
-                        item_text = match.group(2).strip()
-                        
-                        # Only prevent exact duplicates - NO OTHER FILTERING!
-                        if item_number not in unique_items:
-                            unique_items[item_number] = item_text
+    # Extract numbered items (1., 2., 3., etc.) - MUCH MORE RELIABLE IN PDF
+    pattern = r'(\d+)\.\s*([^\n]+)'
+    matches = re.findall(pattern, text_content, re.MULTILINE)
     
-    print(f"DEBUG: Found {len(unique_items)} unique numbered items - BIREBIR KOPYALA!")
+    print(f"DEBUG: Found {len(matches)} numbered items in PDF")
     
-    # Convert to control items format
+    for match in matches:
+        try:
+            item_number = int(match[0])
+            item_text = match[1].strip()
+            
+            # Filter out headers and non-control items
+            if (len(item_text) > 15 and 
+                item_number <= 60 and
+                not any(skip_word in item_text.upper() for skip_word in 
+                       ['GENEL', 'BİLGİLER', 'KONTROL', 'TEST', 'RAPOR', 'BAŞLIK', 'FORM']) and
+                item_number not in unique_items):
+                
+                unique_items[item_number] = item_text
+                
+        except ValueError:
+            continue
+    
+    # Create control items with categories
     for item_number in sorted(unique_items.keys()):
         item_text = unique_items[item_number]
         
-        # Smart category determination - UPDATED FOR ALL 53 ITEMS
+        # Smart category determination for 53 items
         if item_number <= 8:
-            current_category = 'A'  # Control systems
+            category = 'A'
         elif item_number <= 16:
-            current_category = 'B'  # Movement systems  
+            category = 'B'
         elif item_number <= 24:
-            current_category = 'C'  # Indicators/warnings
+            category = 'C'
         elif item_number <= 32:
-            current_category = 'D'  # Braking systems
+            category = 'D'
         elif item_number <= 40:
-            current_category = 'E'  # Lifting/chains
+            category = 'E'
         elif item_number <= 48:
-            current_category = 'F'  # Forks/attachments
+            category = 'F'
         elif item_number <= 53:
-            current_category = 'G'  # Final control items (49-53)
+            category = 'G'
         else:
-            current_category = 'H'  # Any extra items beyond 53
+            category = 'H'
         
         control_items.append({
             "id": item_number,
             "text": item_text,
-            "category": current_category,
-            "has_dropdown": True,  # All items have U/UD/U.Y dropdown
-            "has_comment": True,   # All items have comment field
-            "has_photo": True      # All items can have photos
-        })
-
-    # Update structure with parsed control items
-    structure["control_items"] = control_items
-    
-    # Group control items by categories
-    categories_dict = {}
-    categories_list = []
-    
-    for item in control_items:
-        category = item.get("category", "A")
-        if category not in categories_dict:
-            categories_dict[category] = {
-                "name": f"KATEGORI {category}",
-                "items": []
-            }
-        categories_dict[category]["items"].append({
-            "id": item["id"],
-            "text": item["text"],
             "category": category,
             "input_type": "dropdown",
             "has_comment": True,
             "required": True
         })
     
-    # Create categories list for backward compatibility
+    print(f"DEBUG: Created {len(control_items)} control items from PDF")
+    
+    # Group by categories
+    categories_dict = {}
+    categories_list = []
+    
+    for item in control_items:
+        category = item["category"]
+        if category not in categories_dict:
+            categories_dict[category] = {
+                "name": f"KATEGORI {category}",
+                "items": []
+            }
+        categories_dict[category]["items"].append(item)
+    
+    # Create categories list
     category_names = {
-        'A': 'KATEGORI A',
-        'B': 'KATEGORI B', 
-        'C': 'KATEGORI C',
-        'D': 'KATEGORI D',
-        'E': 'KATEGORI E',
-        'F': 'KATEGORI F',
-        'G': 'KATEGORI G',
-        'H': 'KATEGORI H'
+        'A': 'A', 'B': 'B', 'C': 'C', 'D': 'D', 
+        'E': 'E', 'F': 'F', 'G': 'G', 'H': 'H'
     }
     
     for category_code in sorted(categories_dict.keys()):
@@ -1515,13 +1557,75 @@ def parse_universal_template_structure(text: str, tables: list, equipment_type: 
             "items": categories_dict[category_code]["items"]
         })
     
-    # Store both formats for compatibility
-    structure["categories"] = categories_list  # For backward compatibility
-    structure["categories_dict"] = categories_dict  # New format
+    # Build final template data with universal structure
+    template_data = {
+        "name": template_name,
+        "equipment_type": equipment_type,
+        "template_type": template_type,
+        "description": f"{equipment_type} periyodik muayene {template_type.lower()} template - PDF'den parse edildi", 
+        "parsed_from": "PDF",
+        "parse_date": datetime.utcnow().isoformat(),
+        "categories": categories_list,
+        "is_active": True,
+        "total_items": len(control_items),
+        
+        # Universal Template Structure
+        "general_info": {
+            "company_name": {"label": "Firma Adı", "required": True},
+            "inspection_address": {"label": "Muayene adresi", "required": True},
+            "phone": {"label": "Telefon", "required": False},
+            "email": {"label": "E-posta", "required": False},
+            "periodic_control_date": {"label": "Periyodik Kontrol Tarihi", "required": True},
+            "report_date": {"label": "Rapor Tarihi", "required": True},
+            "report_no": {"label": "Rapor No", "required": True}
+        },
+        
+        "measurement_devices": [
+            {"label": "Cihaz Adı", "required": True},
+            {"label": "Cihaz Markası", "required": True},
+            {"label": "Cihaz Kodu/Seri No", "required": True},
+            {"label": "Kalibrasyon Tarihi", "required": True}
+        ],
+        
+        "equipment_info": {
+            "brand": {"label": "Markası", "required": True},
+            "type_model": {"label": "Tipi/Modeli", "required": True},
+            "serial_no": {"label": "Seri no", "required": True},
+            "manufacturing_year": {"label": "İmal yılı", "required": True},
+            "lifting_capacity": {"label": "Kaldırma Kapasitesi (kg)", "required": True}
+        },
+        
+        "test_values": {
+            "static_test_load": {"label": "Statik Test Yükü (Kg)", "required": False},
+            "dynamic_test_load": {"label": "Dinamik Test Yükü (Kg)", "required": False}
+        },
+        
+        "control_items": control_items,
+        "categories_dict": categories_dict,
+        
+        "test_experiments": [
+            {"id": 51, "text": "Test, deney ve muayene kriterleri", "required": True}
+        ],
+        
+        "defect_explanations": "Tespit edilen kusurların detaylı açıklaması",
+        "notes": "Ek notlar ve açıklamalar", 
+        "result_opinion": "Yukarıda teknik özellikleri belirtilen ekipmanın kullanılması UYGUNDIR/SAKINCALIDIR.",
+        
+        "inspector_info": {
+            "name": {"label": "Adı Soyadı", "required": True},
+            "title": {"label": "Unvanı", "required": True},
+            "signature": {"label": "İmza", "required": True, "type": "signature"}
+        },
+        
+        "company_official": {
+            "name": {"label": "Adı Soyadı", "required": True},
+            "title": {"label": "Görevi", "required": True},
+            "signature": {"label": "İmza", "required": True, "type": "signature"}
+        }
+    }
     
-    print(f"DEBUG: Parsed {len(control_items)} control items in {len(categories_dict)} categories - BIREBIR KOPYALA COMPLETED!")
-    
-    return structure
+    print(f"DEBUG: PDF template created: {template_name} with {len(control_items)} items")
+    return template_data
 
 @app.post("/api/equipment-templates/upload")
 async def upload_template_document(

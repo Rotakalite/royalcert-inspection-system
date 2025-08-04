@@ -456,7 +456,7 @@ class RoyalCertTester:
         # Test template download without auth
         try:
             response = unauth_session.get(f"{BACKEND_URL}/customers/bulk-import/template")
-            if response.status_code == 401:
+            if response.status_code in [401, 403]:  # Both are valid for authentication failure
                 print("✅ Template download correctly requires authentication")
                 results.append(True)
             else:
@@ -474,7 +474,7 @@ class RoyalCertTester:
             }
             
             response = unauth_session.post(f"{BACKEND_URL}/customers/bulk-import", files=files)
-            if response.status_code == 401:
+            if response.status_code in [401, 403]:  # Both are valid for authentication failure
                 print("✅ Bulk import correctly requires authentication")
                 results.append(True)
             else:

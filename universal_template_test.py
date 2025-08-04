@@ -16,8 +16,8 @@ import json
 import os
 from datetime import datetime
 
-# Configuration - Use environment variable for backend URL
-BACKEND_URL = os.getenv('REACT_APP_ROYALCERT_API_URL', 'https://royalcert-inspection-system-production.up.railway.app/api')
+# Configuration - Use local backend for testing
+BACKEND_URL = "http://localhost:8001/api"
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "admin123"
 

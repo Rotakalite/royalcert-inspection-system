@@ -560,6 +560,44 @@ const AdminDashboard = () => {
           </div>
         </div>
       )}
+
+      {activeTab === 'customers' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Müşteri Yönetimi</h2>
+              <button
+                onClick={() => setShowCustomerManagement(true)}
+                className="px-4 py-2 bg-red-900 text-white rounded-md hover:bg-red-800"
+              >
+                Müşteri Yönetimi'ne Git
+              </button>
+            </div>
+            <p className="text-gray-600">
+              Müşteri kayıtlarını, ekipmanları ve toplu içe aktarım işlemlerini yönetin.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'inspections' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Denetim Planlama</h2>
+              <button
+                onClick={() => setShowInspectionPlanning(true)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                Denetim Planlama'ya Git
+              </button>
+            </div>
+            <p className="text-gray-600">
+              Denetim planlama, denetçi atama ve takip işlemlerini yönetin.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

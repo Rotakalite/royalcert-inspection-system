@@ -1395,12 +1395,12 @@ def parse_universal_template_structure(text: str, tables: list, equipment_type: 
         item_number = int(match[0])
         item_text = match[1].strip()
         
-        # Skip if item number is unreasonable (but not too restrictive)
-        if item_number < 1 or item_number > 100:  # Allow up to 100 for complex equipment
+        # Skip if item number is unreasonable - EXTENDED RANGE FOR ALL 53 ITEMS
+        if item_number < 1 or item_number > 60:  # Allow up to 60 to capture all 53 items
             continue
             
-        # Skip if item text is too short (real control items are descriptive)
-        if len(item_text) < 15:  # Real control items are at least 15 chars
+        # Skip if item text is too short - RELAXED FOR REAL CONTROL ITEMS
+        if len(item_text) < 10:  # Reduced from 15 to 10 to avoid missing short but valid items
             continue
             
         # Skip common headers and non-control text (SMART FILTERING)

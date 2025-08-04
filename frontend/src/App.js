@@ -587,9 +587,308 @@ const PlanlamaDashboard = () => {
   );
 };
 
-const DenetciDashboard = () => {
-  const [stats, setStats] = useState({});
-  const [inspections, setInspections] = useState([]);
+const DynamicInspectionForm = ({ inspectionId, onBack, onSave }) => {
+  const [formData, setFormData] = useState(null);
+  const [formResults, setFormResults] = useState({});
+  const [generalInfo, setGeneralInfo] = useState({});
+  const [equipmentInfo, setEquipmentInfo] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetchFormData();
+  }, [inspectionId]);
+
+  const fetchFormData = async () => {
+    try {
+      const response = await api.get(`/inspections/${inspectionId}/form`);
+      const data = response.data;
+      setFormData(data);
+      
+      // Initialize form results
+      if (data.existing_data && data.existing_data.form_results) {
+        const results = {};
+        data.existing_data.form_results.forEach(result => {
+          results[result.item_id] = {
+            value: result.value,
+            comment: result.comment || ''
+          };
+        });
+        setFormResults(results);
+      }
+      
+      // Set general and equipment info
+      setGeneralInfo(data.existing_data?.general_info || {});
+      setEquipmentInfo(data.existing_data?.equipment_info || {});
+      
+      setLoading(false);
+    } catch (error) {
+      console.error('Form data error:', error);
+      setLoading(false);
+    }
+  };
+
+  const handleResultChange = (itemId, field, value) => {
+    setFormResults(prev => ({
+      ...prev,
+      [itemId]: {
+        ...prev[itemId],
+        [field]: value
+      }
+    }));
+  };
+
+  const handleSave = async (isDraft = true) => {
+    setSaving(true);
+    try {
+      // Convert form results to API format
+      const apiFormResults = Object.entries(formResults).map(([itemId, data]) => ({
+        item_id: parseInt(itemId),
+        category: getItemCategory(parseInt(itemId)),
+        value: data.value || '',
+        comment: data.comment || null
+      }));
+
+      const formPayload = {
+        general_info: {
+          company_name: formData.customer.company_name,
+          contact_person: formData.customer.contact_person,
+          phone: formData.customer.phone,
+          email: formData.customer.email,
+          inspection_date: new Date(formData.inspection.planned_date).toISOString(),
+          ...generalInfo
+        },
+        equipment_info: {
+          equipment_type: formData.template.equipment_type,
+          ...equipmentInfo
+        },
+        form_results: apiFormResults,
+        defects: generalInfo.defects || null,
+        notes: generalInfo.notes || null,
+        conclusion: generalInfo.conclusion || null
+      };
+
+      await api.post(`/inspections/${inspectionId}/form`, formPayload);
+      
+      if (onSave) onSave();
+      alert(isDraft ? 'Form kaydedildi!' : 'Form tamamlandı!');
+    } catch (error) {
+      console.error('Save error:', error);
+      alert('Kaydetme hatası: ' + (error.response?.data?.detail || 'Bilinmeyen hata'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const getItemCategory = (itemId) => {
+    if (!formData?.template?.categories) return '';
+    for (const category of formData.template.categories) {
+      const item = category.items.find(item => item.id === itemId);
+      if (item) return category.code;
+    }
+    return '';
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <img 
+            src="https://customer-assets.emergentagent.com/job_yeni-yazilim/artifacts/7675i2kn_WhatsApp%20G%C3%B6rsel%202025-08-04%20saat%2012.57.00_7b510c6c.jpg"
+            alt="RoyalCert Logo"
+            className="w-16 h-16 object-contain mx-auto mb-4"
+          />
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-900 mx-auto mb-4"></div>
+          <p className="text-royal-600">Form yükleniyor...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!formData) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-500">Form verisi yüklenemedi.</p>
+        <button
+          onClick={onBack}
+          className="mt-4 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+        >
+          Geri Dön
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-6xl mx-auto space-y-8">
+      {/* Header */}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {formData.template.equipment_type} Muayene Formu
+            </h1>
+            <p className="text-gray-600 mt-1">
+              {formData.customer.company_name} - {formData.customer.contact_person}
+            </p>
+          </div>
+          <button
+            onClick={onBack}
+            className="px-4 py-2 text-gray-600 hover:text-gray-800"
+          >
+            ← Geri Dön
+          </button>
+        </div>
+      </div>
+
+      {/* Form Categories */}
+      {formData.template.categories.map((category, catIndex) => (
+        <div key={category.code} className="bg-white rounded-xl shadow-sm">
+          <div className="px-6 py-4 border-b border-gray-200 bg-red-50">
+            <h2 className="text-lg font-semibold text-red-900">
+              {category.code}. {category.name}
+            </h2>
+          </div>
+          <div className="p-6">
+            <div className="space-y-6">
+              {category.items.map((item, itemIndex) => (
+                <div key={item.id} className="border-b border-gray-100 pb-4 last:border-b-0">
+                  <div className="flex items-start space-x-4">
+                    <div className="flex-shrink-0 w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                      <span className="text-sm font-medium text-gray-600">{item.id}</span>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-900 mb-3">{item.text}</p>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Değerlendirme Dropdown */}
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Değerlendirme {item.required && <span className="text-red-500">*</span>}
+                          </label>
+                          {item.input_type === 'dropdown' ? (
+                            <select
+                              value={formResults[item.id]?.value || ''}
+                              onChange={(e) => handleResultChange(item.id, 'value', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-900 focus:border-transparent text-sm"
+                            >
+                              <option value="">Seçin...</option>
+                              <option value="U">U - Uygun</option>
+                              <option value="UD">UD - Uygun Değil</option>
+                              <option value="U.Y">U.Y - Uygulaması Yok</option>
+                            </select>
+                          ) : (
+                            <input
+                              type="text"
+                              value={formResults[item.id]?.value || ''}
+                              onChange={(e) => handleResultChange(item.id, 'value', e.target.value)}
+                              placeholder="Değer girin..."
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-900 focus:border-transparent text-sm"
+                            />
+                          )}
+                        </div>
+                        
+                        {/* Yorum Alanı */}
+                        {item.has_comment && (
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                              Açıklama/Yorum
+                            </label>
+                            <textarea
+                              value={formResults[item.id]?.comment || ''}
+                              onChange={(e) => handleResultChange(item.id, 'comment', e.target.value)}
+                              placeholder="Varsa açıklama yazın..."
+                              rows="2"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-900 focus:border-transparent text-sm resize-none"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ))}
+
+      {/* Additional Info Section */}
+      <div className="bg-white rounded-xl shadow-sm">
+        <div className="px-6 py-4 border-b border-gray-200 bg-yellow-50">
+          <h2 className="text-lg font-semibold text-yellow-900">Ek Bilgiler</h2>
+        </div>
+        <div className="p-6 space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Kusur Açıklamaları
+            </label>
+            <textarea
+              value={generalInfo.defects || ''}
+              onChange={(e) => setGeneralInfo(prev => ({...prev, defects: e.target.value}))}
+              rows="3"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-900 focus:border-transparent"
+              placeholder="Tespit edilen kusurları detaylı olarak açıklayın..."
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Notlar
+            </label>
+            <textarea
+              value={generalInfo.notes || ''}
+              onChange={(e) => setGeneralInfo(prev => ({...prev, notes: e.target.value}))}
+              rows="2"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-900 focus:border-transparent"
+              placeholder="Ek notlar..."
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Sonuç ve Kanaat
+            </label>
+            <select
+              value={generalInfo.conclusion || ''}
+              onChange={(e) => setGeneralInfo(prev => ({...prev, conclusion: e.target.value}))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-900 focus:border-transparent"
+            >
+              <option value="">Sonuç seçin...</option>
+              <option value="UYGUN">Ekipmanın kullanılması UYGUNDUR</option>
+              <option value="SAKINCALI">Ekipmanın kullanılması SAKINCALIDIR</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="flex justify-between items-center">
+          <div className="text-sm text-gray-600">
+            Form otomatik kaydedilmektedir
+          </div>
+          <div className="space-x-4">
+            <button
+              onClick={() => handleSave(true)}
+              disabled={saving}
+              className="px-6 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50"
+            >
+              {saving ? 'Kaydediliyor...' : 'Taslak Kaydet'}
+            </button>
+            <button
+              onClick={() => handleSave(false)}
+              disabled={saving}
+              className="px-6 py-2 bg-red-900 text-white rounded-md hover:bg-red-800 disabled:opacity-50"
+            >
+              {saving ? 'Tamamlanıyor...' : 'Formu Tamamla'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
   useEffect(() => {
     fetchStats();

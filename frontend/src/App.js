@@ -2917,6 +2917,7 @@ const DenetciDashboard = () => {
   const [inspections, setInspections] = useState([]);
   const [selectedInspection, setSelectedInspection] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [activeTab, setActiveTab] = useState('today');
 
   useEffect(() => {
     fetchStats();
@@ -2935,7 +2936,11 @@ const DenetciDashboard = () => {
   const fetchInspections = async () => {
     try {
       const response = await api.get('/inspections');
-      setInspections(response.data);
+      // Filter only inspections assigned to current user
+      const userInspections = response.data.filter(inspection => 
+        inspection.inspector_id === JSON.parse(localStorage.getItem('user') || '{}').id
+      );
+      setInspections(userInspections);
     } catch (error) {
       console.error('Inspections error:', error);
     }

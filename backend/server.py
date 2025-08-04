@@ -1495,19 +1495,49 @@ def parse_universal_template_structure(text: str, tables: list, equipment_type: 
     structure["control_items"] = control_items
     
     # Group control items by categories
-    categories = {}
+    categories_dict = {}
+    categories_list = []
+    
     for item in control_items:
         category = item.get("category", "A")
-        if category not in categories:
-            categories[category] = {
+        if category not in categories_dict:
+            categories_dict[category] = {
                 "name": f"KATEGORI {category}",
                 "items": []
             }
-        categories[category]["items"].append(item)
+        categories_dict[category]["items"].append({
+            "id": item["id"],
+            "text": item["text"],
+            "category": category,
+            "input_type": "dropdown",
+            "has_comment": True,
+            "required": True
+        })
     
-    structure["categories"] = categories
+    # Create categories list for backward compatibility
+    category_names = {
+        'A': 'KATEGORI A',
+        'B': 'KATEGORI B', 
+        'C': 'KATEGORI C',
+        'D': 'KATEGORI D',
+        'E': 'KATEGORI E',
+        'F': 'KATEGORI F',
+        'G': 'KATEGORI G',
+        'H': 'KATEGORI H'
+    }
     
-    print(f"DEBUG: Parsed {len(control_items)} control items in {len(categories)} categories")
+    for category_code in sorted(categories_dict.keys()):
+        categories_list.append({
+            "code": category_code,
+            "name": category_names.get(category_code, f"KATEGORI {category_code}"),
+            "items": categories_dict[category_code]["items"]
+        })
+    
+    # Store both formats for compatibility
+    structure["categories"] = categories_list  # For backward compatibility
+    structure["categories_dict"] = categories_dict  # New format
+    
+    print(f"DEBUG: Parsed {len(control_items)} control items in {len(categories_dict)} categories")
     
     return structure
 

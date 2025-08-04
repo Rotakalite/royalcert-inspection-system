@@ -606,7 +606,7 @@ const AdminDashboard = () => {
   const handleFileSelect = (event) => {
     const files = Array.from(event.target.files);
     const validFiles = files.filter(file => {
-      return file.name.endsWith('.docx') || file.name.endsWith('.doc');
+      return file.name.endsWith('.docx') || file.name.endsWith('.doc') || file.name.endsWith('.pdf');
     });
     
     if (validFiles.length !== files.length) {

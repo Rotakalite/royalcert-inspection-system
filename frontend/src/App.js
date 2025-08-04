@@ -1271,6 +1271,12 @@ const AdminDashboard = () => {
                 <h2 className="text-lg font-semibold text-gray-900">Ekipman Template'leri Yönetimi</h2>
                 <div className="space-x-3">
                   <button
+                    onClick={() => setShowTemplateBuilder(true)}
+                    className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700"
+                  >
+                    🛠️ Template Builder
+                  </button>
+                  <button
                     onClick={() => setShowTemplateForm(true)}
                     className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                   >

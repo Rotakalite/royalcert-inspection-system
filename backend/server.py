@@ -1279,46 +1279,63 @@ def parse_word_document(file_content: bytes, filename: str) -> dict:
         elif "FORM" in filename_upper:
             template_type = "FORM"
         
-        # Parse control items from text - IMPROVED ALGORITHM
+        # SMART Parse control items from text - GET REAL CONTROL ITEMS ONLY
         control_items = []
         categories = {}
         
-        # Look for numbered items (1., 2., 3., etc.) in text
-        item_pattern = r'^(\d+)\.\s*([^\n\r]+)'
+        # Look for numbered items (1., 2., 3., etc.) in text - BETTER PATTERN
+        item_pattern = r'^(\d+)\.\s*(.+)$'
         matches = re.findall(item_pattern, text, re.MULTILINE)
         
-        # Filter out invalid matches
+        # Smart filtering to get REAL control items only
         valid_matches = []
+        seen_texts = set()  # Prevent duplicates
+        
         for match in matches:
             item_number = int(match[0])
             item_text = match[1].strip()
             
-            # Skip if item number is too high (max 60 for any equipment)
-            if item_number > 60:
+            # Skip if item number is unreasonable (but not too restrictive)
+            if item_number < 1 or item_number > 100:  # Allow up to 100 for complex equipment
                 continue
                 
-            # Skip if item text is too short or contains only symbols
-            if len(item_text) < 10:
+            # Skip if item text is too short (real control items are descriptive)
+            if len(item_text) < 15:  # Real control items are at least 15 chars
                 continue
                 
-            # Skip if text contains only control values or common headers
-            skip_patterns = ['D', 'U', 'UD', 'U.Y', 'GENEL', 'BİLGİLER', 'MUAYENE', 'TEST', 
-                           'KONTROL', 'ETİKET', 'BAŞLIK', 'TABLE', 'FORM', 'RAPOR']
+            # Skip common headers and non-control text (SMART FILTERING)
+            skip_patterns = [
+                'GENEL', 'BİLGİLER', 'MUAYENE', 'KONTROL', 'ETİKET', 'TEST', 'FORM', 'RAPOR', 
+                'BAŞLIK', 'TABLE', 'DEĞER', 'DURUM', 'TARİH', 'NO', 'ADI', 'KODU', 'MARKASı',
+                'TİPİ', 'SERİ', 'İMAL', 'YIL', 'KAPASITE', 'YÜKSEKLIK', 'MESAFE', 'ÖLÇÜM',
+                'DEĞERLENDİRME', 'AÇIKLAMA', 'NOT'
+            ]
+            
+            # Skip if item text is primarily a header/label
             if any(pattern in item_text.upper() for pattern in skip_patterns):
                 continue
                 
-            # Skip if text is repetitive or contains only numbers/symbols
-            if len(set(item_text.replace(' ', ''))) < 5:  # Too repetitive
+            # Skip if text contains primarily numbers/codes/values (not control descriptions)  
+            if re.search(r'^\d+[.\-/\s]*\d*$', item_text.strip()):
                 continue
                 
+            # Skip repetitive or too similar texts
+            text_key = re.sub(r'\s+', ' ', item_text.lower())
+            if text_key in seen_texts:
+                continue
+            seen_texts.add(text_key)
+            
+            # Skip if text is primarily symbols or formatting
+            if len(re.sub(r'[^a-zA-ZğüşıöçĞÜŞİÖÇ]', '', item_text)) < 10:
+                continue
+            
+            # This looks like a REAL control item!
             valid_matches.append((item_number, item_text))
         
-        # Sort by item number and take only reasonable amount
+        # Sort by item number (preserve original order)
         valid_matches.sort(key=lambda x: x[0])
         
-        # Limit to maximum 60 control items (reasonable for any equipment)
-        if len(valid_matches) > 60:
-            valid_matches = valid_matches[:60]
+        print(f"DEBUG: Found {len(valid_matches)} valid control items after smart filtering")
         
         current_category = 'A'
         
@@ -1326,23 +1343,23 @@ def parse_word_document(file_content: bytes, filename: str) -> dict:
             item_number = int(match[0])
             item_text = match[1].strip()
             
-            # Determine category (A-H, roughly 7-8 items per category)
-            if item_number <= 8:
-                current_category = 'A'
-            elif item_number <= 16:
-                current_category = 'B'
-            elif item_number <= 24:
-                current_category = 'C'
-            elif item_number <= 32:
-                current_category = 'D'
-            elif item_number <= 40:
-                current_category = 'E'
+            # Smart category determination based on typical equipment inspection structure
+            if item_number <= 12:
+                current_category = 'A'  # Usually control/cabin systems
+            elif item_number <= 20:
+                current_category = 'B'  # Usually movement/drive systems  
+            elif item_number <= 27:
+                current_category = 'C'  # Usually indicators/warnings
+            elif item_number <= 35:
+                current_category = 'D'  # Usually braking systems
+            elif item_number <= 42:
+                current_category = 'E'  # Usually lifting/chains
             elif item_number <= 48:
-                current_category = 'F'
-            elif item_number <= 56:
-                current_category = 'G'
+                current_category = 'F'  # Usually forks/attachments
+            elif item_number <= 55:
+                current_category = 'G'  # Usually fuel/emissions
             else:
-                current_category = 'H'
+                current_category = 'H'  # Usually other controls/safety
             
             # Add to categories count
             if current_category not in categories:

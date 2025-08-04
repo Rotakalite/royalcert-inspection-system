@@ -275,6 +275,128 @@ const AdminDashboard = () => {
     }
   };
 
+  // User Management Functions
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    
+    if (userFormData.password !== userFormData.confirm_password) {
+      alert('Şifreler eşleşmiyor');
+      return;
+    }
+
+    if (userFormData.password.length < 6) {
+      alert('Şifre en az 6 karakter olmalıdır');
+      return;
+    }
+
+    try {
+      const userData = {
+        username: userFormData.username,
+        email: userFormData.email,
+        full_name: userFormData.full_name,
+        role: userFormData.role,
+        password: userFormData.password
+      };
+
+      if (editingUser) {
+        // Update user
+        await api.put(`/users/${editingUser.id}`, userData);
+        alert('Kullanıcı başarıyla güncellendi');
+      } else {
+        // Create user
+        await api.post('/auth/register', userData);
+        alert('Kullanıcı başarıyla oluşturuldu');
+      }
+
+      setShowUserForm(false);
+      setEditingUser(null);
+      setUserFormData({
+        username: '',
+        email: '',
+        full_name: '',
+        role: 'denetci',
+        password: '',
+        confirm_password: '',
+        is_active: true
+      });
+      fetchUsers();
+    } catch (error) {
+      console.error('User creation error:', error);
+      alert('Kullanıcı oluşturma hatası: ' + (error.response?.data?.detail || 'Bilinmeyen hata'));
+    }
+  };
+
+  const handleEditUser = (user) => {
+    setEditingUser(user);
+    setUserFormData({
+      username: user.username,
+      email: user.email,
+      full_name: user.full_name,
+      role: user.role,
+      password: '',
+      confirm_password: '',
+      is_active: user.is_active
+    });
+    setShowUserForm(true);
+  };
+
+  const handleToggleUserStatus = async (user) => {
+    try {
+      await api.put(`/users/${user.id}`, {
+        is_active: !user.is_active
+      });
+      alert(`Kullanıcı ${!user.is_active ? 'aktif' : 'pasif'} duruma getirildi`);
+      fetchUsers();
+    } catch (error) {
+      console.error('User status toggle error:', error);
+      alert('Kullanıcı durumu değiştirme hatası: ' + (error.response?.data?.detail || 'Bilinmeyen hata'));
+    }
+  };
+
+  const handleDeleteUser = async (user) => {
+    if (!window.confirm(`${user.full_name} kullanıcısını silmek istediğinizden emin misiniz?`)) {
+      return;
+    }
+
+    try {
+      await api.delete(`/users/${user.id}`);
+      alert('Kullanıcı başarıyla silindi');
+      fetchUsers();
+    } catch (error) {
+      console.error('User deletion error:', error);
+      alert('Kullanıcı silme hatası: ' + (error.response?.data?.detail || 'Bilinmeyen hata'));
+    }
+  };
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const newPassword = formData.get('new_password');
+    const confirmPassword = formData.get('confirm_password');
+
+    if (newPassword !== confirmPassword) {
+      alert('Şifreler eşleşmiyor');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      alert('Şifre en az 6 karakter olmalıdır');
+      return;
+    }
+
+    try {
+      await api.put(`/users/${passwordModalUser.id}/password`, {
+        new_password: newPassword
+      });
+      alert('Şifre başarıyla değiştirildi');
+      setShowPasswordModal(false);
+      setPasswordModalUser(null);
+    } catch (error) {
+      console.error('Password change error:', error);
+      alert('Şifre değiştirme hatası: ' + (error.response?.data?.detail || 'Bilinmeyen hata'));
+    }
+  };
+
   // Show Customer Management
   if (showCustomerManagement) {
     return (

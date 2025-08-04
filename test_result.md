@@ -161,6 +161,18 @@ backend:
         agent: "testing"
         comment: "🎉 TEMPLATE UPLOAD SYSTEM FIX COMPLETED - FORM AND REPORT TYPES: Comprehensive testing of updated template upload system completed with 8/8 tests passing. ✅ CORE FUNCTIONALITY VERIFIED: 1) Both FORKLIFT MUAYENE FORMU (FORM) and FORKLIFT MUAYENE RAPORU (REPORT) documents successfully uploaded and parsed, 2) Same equipment_type (FORKLIFT) with different template_types correctly implemented, 3) Word document parsing working perfectly - FORM extracted 812 control items, REPORT extracted 730 control items, both with 8 categories, 4) Template structure properly identified from filename patterns. ✅ DUPLICATE PREVENTION WORKING: 1) Same FORM upload correctly prevented on second attempt, 2) Same REPORT upload correctly prevented on second attempt, 3) System properly distinguishes between template types for duplicate checking. ✅ DATABASE STORAGE VERIFIED: 1) Templates stored with correct structure including name and template_type fields, 2) GET /api/equipment-templates returns both templates correctly, 3) Templates properly categorized by type. ✅ BACKEND MODEL FIXED: Updated EquipmentTemplate model to include name and template_type fields. 🎯 USER CONCERN RESOLVED: The updated system correctly handles FORM and REPORT types for the same equipment, allowing one equipment type (FORKLIFT) to have two different document types (FORM for inspection forms, REPORT for PDF reports). System is production-ready and fully functional."
 
+  - task: "Critical Inspection Workflow Issues Resolution"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "🚨 CRITICAL WORKFLOW ISSUES IDENTIFIED AND RESOLVED: Comprehensive testing of inspection system workflow completed with 5/5 critical issues resolved. ✅ ISSUES FIXED: 1) Inspector Assignment Visibility - Inspectors can properly see assigned inspections with correct filtering by inspector_id, 2) Inspection Status Workflow - Status transitions working correctly (beklemede -> devam_ediyor -> rapor_yazildi -> onaylandi), completed inspections remain visible to inspectors, 3) Technical Manager Report Queue - CRITICAL BUG FIXED: /api/inspections/pending-approval endpoint was returning 404 due to route ordering issue, moved specific route before parameterized route, now technical managers can see pending reports correctly, 4) Duplicate Inspection Prevention - IMPLEMENTED: Added validation to prevent duplicate inspections for same customer/equipment combination, only allows one active inspection per equipment, 5) Database Investigation - All data integrity checks passed, no assignment issues found. 🔧 BACKEND FIXES APPLIED: 1) Fixed FastAPI route ordering bug for pending-approval endpoint, 2) Implemented duplicate inspection prevention with proper error handling, 3) Enhanced inspection creation with updated_at field. 🎯 SYSTEM STATUS: All critical inspection workflow issues resolved. System is now production-ready for inspection management with proper assignment visibility, status workflow, technical manager approval queue, and duplicate prevention."
+
 frontend:
   - task: "Bulk Import Modal Component"
     implemented: true

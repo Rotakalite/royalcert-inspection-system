@@ -1313,13 +1313,47 @@ def parse_word_document(file_content: bytes, filename: str) -> dict:
                             })
                             item_id += 1
         
+        # Group control items by category
+        categories_dict = {}
+        for item in control_items:
+            category = item.get('category', 'A')
+            if category not in categories_dict:
+                categories_dict[category] = []
+            categories_dict[category].append({
+                "id": item["id"],
+                "text": item["text"],
+                "category": category,
+                "input_type": "dropdown",
+                "has_comment": True,
+                "required": True
+            })
+        
+        # Create category structure
+        categories_list = []
+        category_names = {
+            'A': 'KATEGORI A',
+            'B': 'KATEGORI B', 
+            'C': 'KATEGORI C',
+            'D': 'KATEGORI D',
+            'E': 'KATEGORI E',
+            'F': 'KATEGORI F',
+            'G': 'KATEGORI G',
+            'H': 'KATEGORI H'
+        }
+        
+        for category_code in sorted(categories_dict.keys()):
+            categories_list.append({
+                "code": category_code,
+                "name": category_names.get(category_code, f"KATEGORI {category_code}"),
+                "items": categories_dict[category_code]
+            })
+        
         # Create template structure
         template_data = {
-            "name": filename.replace('.docx', '').replace('_', ' ').upper(),
             "equipment_type": equipment_type,
             "description": f"Auto-parsed from {filename}",
-            "control_items": control_items[:50],  # Limit to 50 items max
-            "categories": len(set(item.get('category', 'A') for item in control_items)),
+            "categories": categories_list,
+            "name": filename.replace('.docx', '').replace('_', ' ').upper(),
             "total_items": len(control_items),
             "parsed_from": filename,
             "parse_date": datetime.utcnow(),

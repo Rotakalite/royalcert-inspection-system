@@ -1492,13 +1492,14 @@ async def bulk_upload_templates(
             
             # Check if template already exists
             existing_template = await db.equipment_templates.find_one({
-                "name": template_data["name"]
+                "equipment_type": template_data["equipment_type"],
+                "template_type": template_data["template_type"]
             })
             
             if existing_template:
                 results["failed"].append({
                     "filename": file.filename,
-                    "error": f"Template '{template_data['name']}' already exists"
+                    "error": f"{template_data['equipment_type']} {template_data['template_type']} template already exists"
                 })
                 continue
             

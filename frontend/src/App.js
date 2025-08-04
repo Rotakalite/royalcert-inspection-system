@@ -853,6 +853,12 @@ const CustomerManagement = ({ onBack }) => {
             Yeni Müşteri Ekle
           </button>
           <button
+            onClick={() => setShowBulkImport(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            Toplu İçe Aktar
+          </button>
+          <button
             onClick={onBack}
             className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
           >
@@ -860,6 +866,9 @@ const CustomerManagement = ({ onBack }) => {
           </button>
         </div>
       </div>
+
+      {/* Bulk Import Modal */}
+      {showBulkImport && <BulkImportModal onClose={() => setShowBulkImport(false)} onSuccess={fetchCustomers} />}
 
       {/* Customers Table */}
       <div className="bg-white rounded-xl shadow-sm">

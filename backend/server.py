@@ -1358,23 +1358,43 @@ def parse_word_document(file_content: bytes, filename: str) -> dict:
                 "has_photo": True      # All items can have photos
             })
         
-        # If no numbered items found, try to extract from tables
+        # If no numbered items found, try to extract from tables (FALLBACK - Limited)
         if not control_items and tables:
             item_id = 1
+            max_items = 50  # Strict limit for table parsing
+            
             for table in tables:
+                if len(control_items) >= max_items:
+                    break
+                    
                 for row in table:
+                    if len(control_items) >= max_items:
+                        break
+                        
                     for cell_text in row:
-                        # Look for control item patterns
-                        if len(cell_text) > 10 and not any(x in cell_text.upper() for x in ['GENEL', 'BİLGİLER', 'MUAYENE', 'TEST', 'ETİKET']):
-                            # Determine category
-                            if item_id <= 12:
-                                current_category = 'A' if item_id <= 6 else 'B'
+                        if len(control_items) >= max_items:
+                            break
+                            
+                        # More strict filtering for table cells
+                        if (len(cell_text) > 15 and len(cell_text) < 200 and
+                            not any(x in cell_text.upper() for x in ['GENEL', 'BİLGİLER', 'MUAYENE', 'TEST', 'ETİKET', 
+                                                                     'KONTROL', 'FORM', 'RAPOR', 'TABLE', 'BAŞLIK']) and
+                            not cell_text.upper().strip() in ['D', 'U', 'UD', 'U.Y'] and
+                            cell_text.count('.') < 3):  # Avoid dotted patterns
+                            
+                            # Determine category - better distribution
+                            if item_id <= 8:
+                                current_category = 'A'
+                            elif item_id <= 16:
+                                current_category = 'B'
                             elif item_id <= 24:
-                                current_category = 'C' if item_id <= 18 else 'D'
-                            elif item_id <= 36:
-                                current_category = 'E' if item_id <= 30 else 'F'
+                                current_category = 'C'
+                            elif item_id <= 32:
+                                current_category = 'D'
+                            elif item_id <= 40:
+                                current_category = 'E'
                             else:
-                                current_category = 'G' if item_id <= 42 else 'H'
+                                current_category = 'F'  # Limit to 6 categories for table parsing
                             
                             control_items.append({
                                 "id": item_id,

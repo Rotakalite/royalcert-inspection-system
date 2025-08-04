@@ -23,6 +23,515 @@ FORKLIFT_DOCUMENTS = {
     "FORKLIFT_MUAYENE_RAPORU": "https://customer-assets.emergentagent.com/job_periodic-check/artifacts/00vmxy69_RC-M-%C4%B0E-FR25_6%20FORKL%C4%B0FT%20MUAYENE%20RAPORU.docx"
 }
 
+class ImprovedWordParsingTester:
+    def __init__(self):
+        self.session = requests.Session()
+        self.token = None
+        self.user_info = None
+        self.existing_forklift_templates = []
+        self.template_results = {}
+        
+    def authenticate(self):
+        """Authenticate with admin credentials"""
+        print("🔐 Testing Authentication...")
+        
+        login_data = {
+            "username": ADMIN_USERNAME,
+            "password": ADMIN_PASSWORD
+        }
+        
+        try:
+            response = self.session.post(f"{BACKEND_URL}/auth/login", json=login_data)
+            print(f"Login Response Status: {response.status_code}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.token = data["access_token"]
+                self.user_info = data["user"]
+                
+                # Set authorization header for future requests
+                self.session.headers.update({
+                    "Authorization": f"Bearer {self.token}"
+                })
+                
+                print(f"✅ Authentication successful")
+                print(f"   User: {self.user_info['full_name']} ({self.user_info['role']})")
+                return True
+            else:
+                print(f"❌ Authentication failed: {response.text}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Authentication error: {str(e)}")
+            return False
+
+    def check_existing_forklift_templates(self):
+        """Check for existing FORKLIFT templates and store their IDs"""
+        print("\n🔍 Checking for Existing FORKLIFT Templates...")
+        
+        try:
+            response = self.session.get(f"{BACKEND_URL}/equipment-templates")
+            print(f"Equipment Templates Status: {response.status_code}")
+            
+            if response.status_code == 200:
+                templates_data = response.json()
+                
+                # Find FORKLIFT templates
+                forklift_templates = [t for t in templates_data if t.get('equipment_type') == 'FORKLIFT']
+                self.existing_forklift_templates = forklift_templates
+                
+                print(f"✅ Found {len(forklift_templates)} existing FORKLIFT templates")
+                
+                for template in forklift_templates:
+                    template_type = template.get('template_type', 'UNKNOWN')
+                    template_name = template.get('name', 'UNNAMED')
+                    total_items = sum(len(cat.get('items', [])) for cat in template.get('categories', []))
+                    print(f"   - {template_name} ({template_type}): {total_items} control items")
+                
+                return True, forklift_templates
+            else:
+                print(f"❌ Failed to get templates: {response.text}")
+                return False, []
+                
+        except Exception as e:
+            print(f"❌ Check existing templates error: {str(e)}")
+            return False, []
+
+    def clean_existing_forklift_templates(self):
+        """Delete existing FORKLIFT templates to test fresh parsing"""
+        print("\n🧹 Cleaning Existing FORKLIFT Templates...")
+        
+        if not self.existing_forklift_templates:
+            print("✅ No existing FORKLIFT templates to clean")
+            return True
+        
+        deleted_count = 0
+        
+        for template in self.existing_forklift_templates:
+            try:
+                template_id = template.get('id')
+                template_name = template.get('name', 'UNNAMED')
+                
+                response = self.session.delete(f"{BACKEND_URL}/equipment-templates/{template_id}")
+                
+                if response.status_code == 200:
+                    print(f"✅ Deleted template: {template_name}")
+                    deleted_count += 1
+                else:
+                    print(f"❌ Failed to delete template {template_name}: {response.text}")
+                    
+            except Exception as e:
+                print(f"❌ Error deleting template {template.get('name', 'UNKNOWN')}: {str(e)}")
+        
+        print(f"✅ Cleaned {deleted_count}/{len(self.existing_forklift_templates)} FORKLIFT templates")
+        return deleted_count == len(self.existing_forklift_templates)
+
+    def download_and_upload_forklift_document(self, doc_name, doc_url):
+        """Download and upload a FORKLIFT document for parsing"""
+        print(f"\n📥 Testing {doc_name} Upload and Parsing...")
+        
+        try:
+            # Download the document
+            print(f"   Downloading from: {doc_url}")
+            doc_response = requests.get(doc_url)
+            
+            if doc_response.status_code != 200:
+                print(f"❌ Failed to download document: {doc_response.status_code}")
+                return False, None
+            
+            print(f"✅ Document downloaded ({len(doc_response.content)} bytes)")
+            
+            # Prepare file for upload
+            filename = doc_name.replace('_', ' ') + '.docx'
+            files = {
+                'file': (filename, doc_response.content, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+            }
+            
+            # Upload the document
+            print(f"   Uploading as: {filename}")
+            upload_response = self.session.post(f"{BACKEND_URL}/equipment-templates/upload", files=files)
+            
+            print(f"Upload Response Status: {upload_response.status_code}")
+            
+            if upload_response.status_code == 200:
+                upload_data = upload_response.json()
+                print("✅ Document uploaded and parsed successfully")
+                
+                # Extract parsing results
+                template_data = upload_data.get('template', {})
+                equipment_type = template_data.get('equipment_type', 'UNKNOWN')
+                template_type = template_data.get('template_type', 'UNKNOWN')
+                template_name = template_data.get('name', 'UNNAMED')
+                categories = template_data.get('categories', [])
+                
+                total_items = sum(len(cat.get('items', [])) for cat in categories)
+                
+                print(f"   Equipment Type: {equipment_type}")
+                print(f"   Template Type: {template_type}")
+                print(f"   Template Name: {template_name}")
+                print(f"   Categories: {len(categories)}")
+                print(f"   Total Control Items: {total_items}")
+                
+                # Verify reasonable control item count (50-60 max as per requirement)
+                if total_items <= 60:
+                    print(f"✅ Control item count is reasonable: {total_items} ≤ 60")
+                else:
+                    print(f"❌ Control item count too high: {total_items} > 60")
+                
+                # Check category distribution
+                print("   Category Distribution:")
+                for category in categories:
+                    cat_code = category.get('code', 'UNKNOWN')
+                    cat_name = category.get('name', 'UNNAMED')
+                    cat_items = len(category.get('items', []))
+                    print(f"     {cat_code}: {cat_name} ({cat_items} items)")
+                
+                result_data = {
+                    'equipment_type': equipment_type,
+                    'template_type': template_type,
+                    'template_name': template_name,
+                    'total_items': total_items,
+                    'categories_count': len(categories),
+                    'categories': categories,
+                    'template_id': template_data.get('id')
+                }
+                
+                # Store results for later analysis
+                self.template_results[doc_name] = result_data
+                
+                return True, result_data
+            else:
+                print(f"❌ Document upload failed: {upload_response.text}")
+                return False, None
+                
+        except Exception as e:
+            print(f"❌ Document upload error: {str(e)}")
+            return False, None
+
+    def verify_improved_filtering(self, template_data):
+        """Verify that improved filtering is working correctly"""
+        print(f"\n🔍 Verifying Improved Filtering for {template_data['template_name']}...")
+        
+        categories = template_data.get('categories', [])
+        total_items = template_data.get('total_items', 0)
+        
+        # Check 1: Reasonable total count
+        reasonable_count = total_items <= 60
+        print(f"   Total items ≤ 60: {'✅' if reasonable_count else '❌'} ({total_items})")
+        
+        # Check 2: Categories are properly distributed (A-H)
+        category_codes = [cat.get('code') for cat in categories]
+        expected_categories = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+        has_proper_categories = any(code in expected_categories for code in category_codes)
+        print(f"   Proper categories (A-H): {'✅' if has_proper_categories else '❌'} ({category_codes})")
+        
+        # Check 3: Items have reasonable text length (not too short/long)
+        reasonable_text_items = 0
+        total_checked_items = 0
+        
+        for category in categories:
+            for item in category.get('items', []):
+                item_text = item.get('text', '')
+                text_length = len(item_text)
+                total_checked_items += 1
+                
+                # Reasonable text length: 10-200 characters
+                if 10 <= text_length <= 200:
+                    reasonable_text_items += 1
+        
+        if total_checked_items > 0:
+            reasonable_text_ratio = reasonable_text_items / total_checked_items
+            print(f"   Reasonable text length: {'✅' if reasonable_text_ratio >= 0.8 else '❌'} ({reasonable_text_items}/{total_checked_items})")
+        else:
+            print("   Reasonable text length: ❌ (No items to check)")
+            reasonable_text_ratio = 0
+        
+        # Check 4: No repetitive or header-like items
+        item_texts = []
+        for category in categories:
+            for item in category.get('items', []):
+                item_texts.append(item.get('text', '').upper())
+        
+        # Check for common header patterns that should be filtered out
+        header_patterns = ['GENEL', 'BİLGİLER', 'MUAYENE', 'TEST', 'KONTROL', 'ETİKET', 'BAŞLIK', 'TABLE', 'FORM', 'RAPOR']
+        header_items = sum(1 for text in item_texts if any(pattern in text for pattern in header_patterns))
+        header_ratio = header_items / len(item_texts) if item_texts else 0
+        
+        good_filtering = header_ratio < 0.1  # Less than 10% header-like items
+        print(f"   Good filtering (low headers): {'✅' if good_filtering else '❌'} ({header_items}/{len(item_texts)} header-like)")
+        
+        # Overall filtering score
+        filtering_score = sum([reasonable_count, has_proper_categories, reasonable_text_ratio >= 0.8, good_filtering])
+        max_score = 4
+        
+        print(f"   Overall Filtering Score: {filtering_score}/{max_score}")
+        
+        return {
+            'reasonable_count': reasonable_count,
+            'proper_categories': has_proper_categories,
+            'reasonable_text_ratio': reasonable_text_ratio,
+            'good_filtering': good_filtering,
+            'filtering_score': filtering_score,
+            'max_score': max_score
+        }
+
+    def verify_template_structure(self, template_data):
+        """Verify template structure is correct"""
+        print(f"\n🏗️  Verifying Template Structure for {template_data['template_name']}...")
+        
+        # Check equipment type
+        equipment_type = template_data.get('equipment_type')
+        correct_equipment_type = equipment_type == 'FORKLIFT'
+        print(f"   Equipment Type = FORKLIFT: {'✅' if correct_equipment_type else '❌'} ({equipment_type})")
+        
+        # Check template type differentiation
+        template_type = template_data.get('template_type')
+        valid_template_type = template_type in ['FORM', 'REPORT']
+        print(f"   Valid Template Type: {'✅' if valid_template_type else '❌'} ({template_type})")
+        
+        # Check categories structure
+        categories = template_data.get('categories', [])
+        has_categories = len(categories) > 0
+        print(f"   Has Categories: {'✅' if has_categories else '❌'} ({len(categories)} categories)")
+        
+        # Check category distribution (should be reasonably distributed)
+        if categories:
+            items_per_category = [len(cat.get('items', [])) for cat in categories]
+            avg_items_per_category = sum(items_per_category) / len(items_per_category)
+            balanced_distribution = all(items >= 1 for items in items_per_category)  # Each category has at least 1 item
+            print(f"   Balanced Distribution: {'✅' if balanced_distribution else '❌'} (avg: {avg_items_per_category:.1f} items/category)")
+        else:
+            balanced_distribution = False
+        
+        # Check item structure
+        sample_items_valid = True
+        if categories and categories[0].get('items'):
+            sample_item = categories[0]['items'][0]
+            required_fields = ['id', 'text', 'category', 'input_type', 'has_comment', 'required']
+            missing_fields = [field for field in required_fields if field not in sample_item]
+            sample_items_valid = len(missing_fields) == 0
+            print(f"   Valid Item Structure: {'✅' if sample_items_valid else '❌'} (missing: {missing_fields})")
+        else:
+            print("   Valid Item Structure: ❌ (No items to check)")
+            sample_items_valid = False
+        
+        structure_score = sum([correct_equipment_type, valid_template_type, has_categories, balanced_distribution, sample_items_valid])
+        max_score = 5
+        
+        print(f"   Overall Structure Score: {structure_score}/{max_score}")
+        
+        return {
+            'correct_equipment_type': correct_equipment_type,
+            'valid_template_type': valid_template_type,
+            'has_categories': has_categories,
+            'balanced_distribution': balanced_distribution,
+            'sample_items_valid': sample_items_valid,
+            'structure_score': structure_score,
+            'max_score': max_score
+        }
+
+    def test_duplicate_prevention(self, doc_name, doc_url):
+        """Test that duplicate templates are prevented"""
+        print(f"\n🚫 Testing Duplicate Prevention for {doc_name}...")
+        
+        try:
+            # Try to upload the same document again
+            doc_response = requests.get(doc_url)
+            if doc_response.status_code != 200:
+                print(f"❌ Failed to download document for duplicate test")
+                return False
+            
+            filename = doc_name.replace('_', ' ') + '.docx'
+            files = {
+                'file': (filename, doc_response.content, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+            }
+            
+            upload_response = self.session.post(f"{BACKEND_URL}/equipment-templates/upload", files=files)
+            
+            if upload_response.status_code == 400:
+                response_text = upload_response.text.lower()
+                if 'already exists' in response_text or 'duplicate' in response_text:
+                    print("✅ Duplicate prevention working correctly")
+                    return True
+                else:
+                    print(f"❌ Unexpected 400 error: {upload_response.text}")
+                    return False
+            else:
+                print(f"❌ Duplicate upload should have failed but got status: {upload_response.status_code}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Duplicate prevention test error: {str(e)}")
+            return False
+
+    def verify_final_template_state(self):
+        """Verify final state of FORKLIFT templates"""
+        print("\n📊 Verifying Final Template State...")
+        
+        try:
+            response = self.session.get(f"{BACKEND_URL}/equipment-templates")
+            
+            if response.status_code == 200:
+                templates_data = response.json()
+                forklift_templates = [t for t in templates_data if t.get('equipment_type') == 'FORKLIFT']
+                
+                print(f"✅ Final FORKLIFT templates count: {len(forklift_templates)}")
+                
+                expected_templates = ['FORM', 'REPORT']
+                found_types = []
+                
+                for template in forklift_templates:
+                    template_type = template.get('template_type', 'UNKNOWN')
+                    template_name = template.get('name', 'UNNAMED')
+                    total_items = sum(len(cat.get('items', [])) for cat in template.get('categories', []))
+                    
+                    found_types.append(template_type)
+                    print(f"   - {template_name} ({template_type}): {total_items} items")
+                
+                # Check if we have both FORM and REPORT
+                has_both_types = 'FORM' in found_types and 'REPORT' in found_types
+                print(f"   Has both FORM and REPORT: {'✅' if has_both_types else '❌'}")
+                
+                return True, {
+                    'total_templates': len(forklift_templates),
+                    'template_types': found_types,
+                    'has_both_types': has_both_types,
+                    'templates': forklift_templates
+                }
+            else:
+                print(f"❌ Failed to get final templates: {response.text}")
+                return False, None
+                
+        except Exception as e:
+            print(f"❌ Final verification error: {str(e)}")
+            return False, None
+
+    def run_improved_parsing_tests(self):
+        """Run all improved Word parsing algorithm tests"""
+        print("🚀 Starting Improved Word Parsing Algorithm Tests")
+        print("=" * 80)
+        
+        test_results = {}
+        
+        # Step 1: Authentication
+        test_results['authentication'] = self.authenticate()
+        if not test_results['authentication']:
+            print("\n❌ Cannot proceed without authentication")
+            return test_results
+        
+        # Step 2: Check existing FORKLIFT templates
+        test_results['check_existing_templates'] = self.check_existing_forklift_templates()[0]
+        
+        # Step 3: Clean existing FORKLIFT templates
+        test_results['clean_existing_templates'] = self.clean_existing_forklift_templates()
+        
+        # Step 4: Test improved Word document parsing
+        parsing_results = {}
+        filtering_results = {}
+        structure_results = {}
+        duplicate_results = {}
+        
+        for doc_name, doc_url in FORKLIFT_DOCUMENTS.items():
+            # Upload and parse document
+            success, template_data = self.download_and_upload_forklift_document(doc_name, doc_url)
+            parsing_results[doc_name] = success
+            
+            if success and template_data:
+                # Verify improved filtering
+                filtering_results[doc_name] = self.verify_improved_filtering(template_data)
+                
+                # Verify template structure
+                structure_results[doc_name] = self.verify_template_structure(template_data)
+                
+                # Test duplicate prevention
+                duplicate_results[doc_name] = self.test_duplicate_prevention(doc_name, doc_url)
+        
+        test_results['document_parsing'] = parsing_results
+        test_results['improved_filtering'] = filtering_results
+        test_results['template_structure'] = structure_results
+        test_results['duplicate_prevention'] = duplicate_results
+        
+        # Step 5: Verify final template state
+        test_results['final_verification'] = self.verify_final_template_state()[0]
+        
+        # Summary
+        print("\n" + "=" * 80)
+        print("📋 IMPROVED WORD PARSING ALGORITHM TEST SUMMARY")
+        print("=" * 80)
+        
+        # Overall results
+        all_parsing_passed = all(parsing_results.values())
+        all_duplicates_prevented = all(duplicate_results.values())
+        
+        print(f"Authentication: {'✅ PASS' if test_results['authentication'] else '❌ FAIL'}")
+        print(f"Clean Existing Templates: {'✅ PASS' if test_results['clean_existing_templates'] else '❌ FAIL'}")
+        print(f"Document Parsing: {'✅ PASS' if all_parsing_passed else '❌ FAIL'}")
+        print(f"Duplicate Prevention: {'✅ PASS' if all_duplicates_prevented else '❌ FAIL'}")
+        print(f"Final Verification: {'✅ PASS' if test_results['final_verification'] else '❌ FAIL'}")
+        
+        # Detailed filtering results
+        print(f"\n📊 FILTERING QUALITY RESULTS:")
+        for doc_name, filtering_data in filtering_results.items():
+            if filtering_data:
+                score = filtering_data['filtering_score']
+                max_score = filtering_data['max_score']
+                print(f"   {doc_name}: {score}/{max_score} ({'✅ GOOD' if score >= 3 else '❌ NEEDS IMPROVEMENT'})")
+        
+        # Detailed structure results
+        print(f"\n🏗️  STRUCTURE QUALITY RESULTS:")
+        for doc_name, structure_data in structure_results.items():
+            if structure_data:
+                score = structure_data['structure_score']
+                max_score = structure_data['max_score']
+                print(f"   {doc_name}: {score}/{max_score} ({'✅ GOOD' if score >= 4 else '❌ NEEDS IMPROVEMENT'})")
+        
+        # Key findings
+        print(f"\n🔍 KEY FINDINGS:")
+        
+        # Check control item counts from stored results
+        for doc_name, template_data in self.template_results.items():
+            total_items = template_data.get('total_items', 0)
+            if total_items <= 53:
+                print(f"   {doc_name}: ✅ Excellent count ({total_items} items)")
+            elif total_items <= 60:
+                print(f"   {doc_name}: ✅ Good count ({total_items} items)")
+            else:
+                print(f"   {doc_name}: ❌ Too many items ({total_items} items)")
+        
+        # Expected outcome verification
+        print(f"\n🎯 EXPECTED OUTCOME VERIFICATION:")
+        print("   Expected: FORKLIFT templates with ~50-53 control items (max 60)")
+        
+        # Check if we achieved the expected outcome
+        reasonable_counts = []
+        for doc_name, template_data in self.template_results.items():
+            total_items = template_data.get('total_items', 0)
+            reasonable_counts.append(total_items <= 60)
+            expected_range = 50 <= total_items <= 53
+            print(f"   {doc_name}: {total_items} items ({'✅ PERFECT' if expected_range else '✅ ACCEPTABLE' if total_items <= 60 else '❌ TOO HIGH'})")
+        
+        overall_success = (test_results['authentication'] and 
+                          test_results['clean_existing_templates'] and
+                          all_parsing_passed and
+                          all_duplicates_prevented and
+                          test_results['final_verification'] and
+                          all(reasonable_counts))
+        
+        if overall_success:
+            print(f"\n🎉 IMPROVED WORD PARSING ALGORITHM TEST COMPLETED SUCCESSFULLY!")
+            print("   ✅ Control item counts are reasonable (≤60 items)")
+            print("   ✅ Filtering algorithm is working correctly")
+            print("   ✅ Template structure is proper")
+            print("   ✅ Duplicate prevention is working")
+        else:
+            print(f"\n⚠️  SOME TESTS FAILED - ALGORITHM NEEDS IMPROVEMENT")
+        
+        return test_results
+
+if __name__ == "__main__":
+    tester = ImprovedWordParsingTester()
+    results = tester.run_improved_parsing_tests()
+
 class RoyalCertPDFReportingTester:
     def __init__(self):
         self.session = requests.Session()

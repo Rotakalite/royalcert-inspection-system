@@ -455,6 +455,100 @@ const AdminDashboard = () => {
     }
   };
 
+  // Template Upload Functions
+  const handleFileSelect = (event) => {
+    const files = Array.from(event.target.files);
+    const validFiles = files.filter(file => {
+      return file.name.endsWith('.docx') || file.name.endsWith('.doc');
+    });
+    
+    if (validFiles.length !== files.length) {
+      alert('Sadece Word dosyaları (.docx, .doc) desteklenmektedir!');
+    }
+    
+    setSelectedFiles(validFiles);
+  };
+
+  const handleSingleTemplateUpload = async () => {
+    if (selectedFiles.length !== 1) {
+      alert('Lütfen tek bir dosya seçin');
+      return;
+    }
+
+    setUploadingTemplate(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFiles[0]);
+
+      const response = await api.post('/equipment-templates/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      alert('Template başarıyla yüklendi ve işlendi!');
+      setShowUploadModal(false);
+      setSelectedFiles([]);
+      fetchTemplates();
+    } catch (error) {
+      console.error('Template upload error:', error);
+      alert('Template yükleme hatası: ' + (error.response?.data?.detail || 'Bilinmeyen hata'));
+    } finally {
+      setUploadingTemplate(false);
+    }
+  };
+
+  const handleBulkTemplateUpload = async () => {
+    if (selectedFiles.length === 0) {
+      alert('Lütfen en az bir dosya seçin');
+      return;
+    }
+
+    if (selectedFiles.length > 50) {
+      alert('Maksimum 50 dosya yükleyebilirsiniz');
+      return;
+    }
+
+    setUploadingTemplate(true);
+    
+    try {
+      const formData = new FormData();
+      selectedFiles.forEach((file, index) => {
+        formData.append('files', file);
+      });
+
+      const response = await api.post('/equipment-templates/bulk-upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      const { results } = response.data;
+      
+      let message = `Toplu yükleme tamamlandı!\n`;
+      message += `✅ Başarılı: ${results.successful.length}\n`;
+      message += `❌ Başarısız: ${results.failed.length}`;
+      
+      if (results.failed.length > 0) {
+        message += `\n\nBaşarısız dosyalar:\n`;
+        results.failed.forEach(failure => {
+          message += `• ${failure.filename}: ${failure.error}\n`;
+        });
+      }
+
+      alert(message);
+      setShowUploadModal(false);
+      setSelectedFiles([]);
+      fetchTemplates();
+    } catch (error) {
+      console.error('Bulk template upload error:', error);
+      alert('Toplu template yükleme hatası: ' + (error.response?.data?.detail || 'Bilinmeyen hata'));
+    } finally {
+      setUploadingTemplate(false);
+    }
+  };
+
 
 
   // User Management Functions

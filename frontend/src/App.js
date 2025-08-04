@@ -637,13 +637,15 @@ const AdminDashboard = () => {
       });
 
       // Show detailed success message with parsed template info
-      const templateData = response.data;
+      const responseData = response.data;
+      const templateInfo = responseData.template;
+      
       const message = `✅ Template başarıyla yüklendi!\n\n` +
-        `📋 Template: ${templateData.name}\n` +
-        `🏷️ Ekipman: ${templateData.equipment_type}\n` +
-        `📄 Tür: ${templateData.template_type}\n` +
-        `🔢 Madde Sayısı: ${templateData.total_items || 0}\n` +
-        `📂 Kategori: ${templateData.categories?.length || 0}\n` +
+        `📋 Template: ${templateInfo.name}\n` +
+        `🏷️ Ekipman: ${templateInfo.equipment_type}\n` +
+        `📄 Tür: ${templateInfo.template_type}\n` +
+        `🔢 Madde Sayısı: ${templateInfo.total_items || 0}\n` +
+        `📂 Kategori: ${templateInfo.categories || 0}\n` +
         `📅 Tarih: ${new Date().toLocaleDateString('tr-TR')}`;
       
       alert(message);

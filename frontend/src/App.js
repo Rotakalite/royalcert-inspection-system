@@ -3151,16 +3151,6 @@ const DenetciDashboard = () => {
     }
   };
 
-  const handleStatusUpdate = async (inspectionId, newStatus) => {
-    try {
-      await api.put(`/inspections/${inspectionId}`, { status: newStatus });
-      fetchStats();
-      fetchInspections();
-    } catch (error) {
-      console.error('Status update error:', error);
-    }
-  };
-
   const openInspectionForm = (inspection) => {
     setSelectedInspection(inspection);
     setShowForm(true);

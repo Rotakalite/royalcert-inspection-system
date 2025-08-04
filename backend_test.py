@@ -1729,14 +1729,238 @@ class CriticalParsingAlgorithmTester:
         
         return test_results
 
+class FinalControlCriteriaTester:
+    """
+    FINAL TEST: 49/53 kontrol kriteri yakalanıyor mu?
+    Tests if the new algorithm captures exactly 49 control criteria from FORKLIFT MUAYENE FORMU
+    (Word document has only 49 items: missing 17, 20, 21, 50)
+    """
+    def __init__(self):
+        self.session = requests.Session()
+        self.token = None
+        self.user_info = None
+        
+    def authenticate(self):
+        """Authenticate with admin credentials"""
+        print("🔐 Testing Authentication...")
+        
+        login_data = {
+            "username": ADMIN_USERNAME,
+            "password": ADMIN_PASSWORD
+        }
+        
+        try:
+            response = self.session.post(f"{BACKEND_URL}/auth/login", json=login_data)
+            print(f"Login Response Status: {response.status_code}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.token = data["access_token"]
+                self.user_info = data["user"]
+                
+                # Set authorization header for future requests
+                self.session.headers.update({
+                    "Authorization": f"Bearer {self.token}"
+                })
+                
+                print(f"✅ Authentication successful")
+                print(f"   User: {self.user_info['full_name']} ({self.user_info['role']})")
+                return True
+            else:
+                print(f"❌ Authentication failed: {response.text}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Authentication error: {str(e)}")
+            return False
+
+    def test_49_control_criteria_capture(self):
+        """
+        CRITICAL TEST: Test if exactly 49 control criteria are captured from FORKLIFT MUAYENE FORMU
+        Expected: 49 items (Word document missing items 17, 20, 21, 50)
+        """
+        print("\n🎯 FINAL TEST: 49/53 KONTROL KRİTERİ YAKALAMA TESTİ")
+        print("=" * 80)
+        print("BEKLENEN: 49 kontrol kriteri (Word dosyasında sadece 49 tane var)")
+        print("EKSİK İTEMLER: 17, 20, 21, 50 numaralı itemler Word'de yok")
+        print("=" * 80)
+        
+        try:
+            # Download FORKLIFT MUAYENE FORMU document
+            doc_url = FORKLIFT_DOCUMENTS["FORKLIFT_MUAYENE_FORMU"]
+            print(f"📥 Downloading FORKLIFT MUAYENE FORMU...")
+            print(f"   URL: {doc_url}")
+            
+            doc_response = requests.get(doc_url)
+            if doc_response.status_code != 200:
+                print(f"❌ Failed to download document: {doc_response.status_code}")
+                return False, None
+            
+            print(f"✅ Document downloaded ({len(doc_response.content)} bytes)")
+            
+            # Prepare file for upload
+            filename = "FORKLIFT MUAYENE FORMU.docx"
+            files = {
+                'file': (filename, doc_response.content, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+            }
+            
+            # Upload the document
+            print(f"\n📤 Uploading document for parsing...")
+            upload_response = self.session.post(f"{BACKEND_URL}/equipment-templates/upload", files=files)
+            
+            print(f"Upload Response Status: {upload_response.status_code}")
+            
+            if upload_response.status_code == 200:
+                upload_data = upload_response.json()
+                print("✅ Document uploaded and parsed successfully")
+                
+                # Extract parsing results
+                template_data = upload_data.get('template', {})
+                equipment_type = template_data.get('equipment_type', 'UNKNOWN')
+                template_type = template_data.get('template_type', 'UNKNOWN')
+                template_name = template_data.get('name', 'UNNAMED')
+                categories = template_data.get('categories', [])
+                
+                # Count total control items
+                total_items = sum(len(cat.get('items', [])) for cat in categories)
+                
+                print(f"\n📊 PARSING RESULTS:")
+                print(f"   Equipment Type: {equipment_type}")
+                print(f"   Template Type: {template_type}")
+                print(f"   Template Name: {template_name}")
+                print(f"   Total Categories: {len(categories)}")
+                print(f"   Total Control Items: {total_items}")
+                
+                # Category breakdown
+                print(f"\n📋 CATEGORY BREAKDOWN:")
+                for category in categories:
+                    cat_code = category.get('code', 'UNKNOWN')
+                    cat_name = category.get('name', 'UNNAMED')
+                    cat_items = len(category.get('items', []))
+                    print(f"   {cat_code}: {cat_name} ({cat_items} items)")
+                
+                # CRITICAL CHECK: Is it exactly 49 items?
+                print(f"\n🎯 CRITICAL VERIFICATION:")
+                print(f"   Expected: 49 control criteria")
+                print(f"   Actual: {total_items} control criteria")
+                
+                if total_items == 49:
+                    print(f"   🎉 SUCCESS: EXACTLY 49/49 KONTROL KRİTERİ YAKALANDI!")
+                    print(f"   ✅ BİREBİR KOPYALA algoritması çalışıyor!")
+                    result = "EVET"
+                elif total_items == 53:
+                    print(f"   ❌ FAILURE: 53 item yakalandı, ama Word'de sadece 49 var!")
+                    print(f"   ❌ Algoritma hayali itemler ekliyor!")
+                    result = "HAYIR"
+                else:
+                    print(f"   ❌ FAILURE: {total_items} item yakalandı, beklenen 49!")
+                    print(f"   ❌ Algoritma doğru çalışmıyor!")
+                    result = "HAYIR"
+                
+                # Show first 10 items for verification
+                print(f"\n📝 İLK 10 KONTROL KRİTERİ (Doğrulama için):")
+                all_items = []
+                for category in categories:
+                    for item in category.get('items', []):
+                        all_items.append({
+                            'id': item.get('id'),
+                            'text': item.get('text'),
+                            'category': item.get('category')
+                        })
+                
+                # Sort by ID and show first 10
+                all_items.sort(key=lambda x: x.get('id', 0))
+                for i, item in enumerate(all_items[:10], 1):
+                    item_id = item.get('id', 'N/A')
+                    category = item.get('category', 'N/A')
+                    text = item.get('text', 'N/A')[:80]
+                    print(f"   {i:2d}. ID:{item_id:3d} [{category}] {text}...")
+                
+                # Check for missing items 17, 20, 21, 50
+                print(f"\n🔍 EKSİK İTEMLER KONTROLÜ (17, 20, 21, 50):")
+                missing_items = [17, 20, 21, 50]
+                found_missing = []
+                
+                for missing_id in missing_items:
+                    found = any(item.get('id') == missing_id for item in all_items)
+                    if found:
+                        found_missing.append(missing_id)
+                        print(f"   ❌ Item {missing_id}: BULUNDU (olmamalıydı!)")
+                    else:
+                        print(f"   ✅ Item {missing_id}: YOK (doğru!)")
+                
+                if found_missing:
+                    print(f"   ❌ HATA: {len(found_missing)} eksik item yanlışlıkla bulundu!")
+                    result = "HAYIR"
+                else:
+                    print(f"   ✅ DOĞRU: Tüm eksik itemler doğru şekilde filtrelendi!")
+                
+                print(f"\n" + "=" * 80)
+                print(f"🎯 FINAL ANSWER: {result}")
+                print(f"   49/49 BİREBİR YAKALANIYOR MU? {result}")
+                print("=" * 80)
+                
+                return True, {
+                    'total_items': total_items,
+                    'expected_items': 49,
+                    'is_exact_match': total_items == 49,
+                    'missing_items_correctly_filtered': len(found_missing) == 0,
+                    'result': result,
+                    'categories': categories,
+                    'all_items': all_items
+                }
+                
+            else:
+                print(f"❌ Document upload failed: {upload_response.text}")
+                return False, None
+                
+        except Exception as e:
+            print(f"❌ Test error: {str(e)}")
+            return False, None
+
+    def run_final_test(self):
+        """Run the final 49/53 control criteria test"""
+        print("🚀 FINAL TEST: 49/53 KONTROL KRİTERİ YAKALAMA")
+        print("=" * 80)
+        
+        # Step 1: Authentication
+        if not self.authenticate():
+            print("\n❌ Cannot proceed without authentication")
+            return False
+        
+        # Step 2: Run the critical test
+        success, results = self.test_49_control_criteria_capture()
+        
+        if success and results:
+            return results['result'] == "EVET"
+        else:
+            return False
+
 if __name__ == "__main__":
-    # Run the CRITICAL parsing algorithm test
-    print("🚨 EXECUTING CRITICAL PARSING ALGORITHM TEST")
-    print("🎯 TESTING: 53/53 KONTROL KRİTERİ YAKALANMA")
-    print("="*100)
+    print("🚀 RoyalCert Backend API Testing Suite")
+    print("=" * 80)
     
-    tester = CriticalParsingAlgorithmTester()
-    results = tester.run_critical_parsing_test()
+    # FINAL TEST ONLY: 49/53 Control Criteria Test
+    print("\n🔧 FINAL TEST: 49/53 KONTROL KRİTERİ YAKALAMA TESTİ")
+    print("-" * 50)
+    
+    final_tester = FinalControlCriteriaTester()
+    final_result = final_tester.run_final_test()
+    
+    # Overall Summary
+    print("\n" + "=" * 80)
+    print("🎯 FINAL TEST SUMMARY")
+    print("=" * 80)
+    
+    if final_result:
+        print("🎉 SUCCESS: 49/49 BİREBİR YAKALANIYOR - EVET!")
+        print("✅ Yeni algoritma Word dosyasındaki tüm itemleri doğru yakalıyor")
+        print("✅ Eksik itemler (17, 20, 21, 50) doğru şekilde filtreleniyor")
+    else:
+        print("❌ FAILURE: 49/49 BİREBİR YAKALANMIYOR - HAYIR!")
+        print("❌ Algoritma düzeltmesi gerekiyor")
+    
+    print("\n🎉 Final test completed!")
 
 class RoyalCertPDFReportingTester:
     def __init__(self):

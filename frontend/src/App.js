@@ -3151,11 +3151,6 @@ const DenetciDashboard = () => {
     }
   };
 
-  const openInspectionForm = (inspection) => {
-    setSelectedInspection(inspection);
-    setShowForm(true);
-  };
-
   const closeInspectionForm = () => {
     setShowForm(false);
     setSelectedInspection(null);

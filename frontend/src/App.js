@@ -1261,6 +1261,362 @@ const CustomerManagement = ({ onBack }) => {
   );
 };
 
+// Inspection Planning Component - Phase 5.1
+const InspectionPlanning = ({ onBack }) => {
+  const [customers, setCustomers] = useState([]);
+  const [inspectors, setInspectors] = useState([]);
+  const [inspections, setInspections] = useState([]);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [loading, setLoading] = useState(true);
+  const [showCreateInspection, setShowCreateInspection] = useState(false);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [customersRes, usersRes, inspectionsRes] = await Promise.all([
+        api.get('/customers'),
+        api.get('/users'),
+        api.get('/inspections')
+      ]);
+      
+      setCustomers(customersRes.data);
+      setInspectors(usersRes.data.filter(user => user.role === 'denetci'));
+      setInspections(inspectionsRes.data);
+      setLoading(false);
+    } catch (error) {
+      console.error('Data loading error:', error);
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <img 
+            src="https://customer-assets.emergentagent.com/job_yeni-yazilim/artifacts/7675i2kn_WhatsApp%20G%C3%B6rsel%202025-08-04%20saat%2012.57.00_7b510c6c.jpg"
+            alt="RoyalCert Logo"
+            className="w-16 h-16 object-contain mx-auto mb-4"
+          />
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-900 mx-auto mb-4"></div>
+          <p className="text-royal-600">Denetim planlama verileri yükleniyor...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show Create Inspection Form
+  if (showCreateInspection) {
+    return (
+      <CreateInspectionForm 
+        customers={customers}
+        inspectors={inspectors}
+        onBack={() => setShowCreateInspection(false)}
+        onSuccess={() => {
+          setShowCreateInspection(false);
+          fetchData();
+        }}
+      />
+    );
+  }
+
+  // Calculate statistics
+  const stats = {
+    totalCustomers: customers.length,
+    totalEquipments: customers.reduce((total, customer) => total + (customer.equipments?.length || 0), 0),
+    totalInspectors: inspectors.length,
+    availableInspectors: inspectors.filter(inspector => inspector.is_active).length,
+    pendingInspections: inspections.filter(inspection => inspection.status === 'beklemede').length,
+    activeInspections: inspections.filter(inspection => inspection.status === 'devam_ediyor').length,
+    completedInspections: inspections.filter(inspection => ['onaylandi', 'rapor_yazildi'].includes(inspection.status)).length,
+    totalInspections: inspections.length
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold text-gray-900">Denetim Planlama Sistemi</h1>
+        <div className="space-x-3">
+          <button
+            onClick={() => setShowCreateInspection(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            + Yeni Denetim Planla
+          </button>
+          <button
+            onClick={onBack}
+            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+          >
+            ← Geri Dön
+          </button>
+        </div>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'overview'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Genel Bakış
+          </button>
+          <button
+            onClick={() => setActiveTab('planning')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'planning'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Planlama Dashboard
+          </button>
+          <button
+            onClick={() => setActiveTab('tracking')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'tracking'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Denetim Takip
+          </button>
+        </nav>
+      </div>
+
+      {/* Overview Tab */}
+      {activeTab === 'overview' && (
+        <div className="space-y-6">
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <StatCard
+              title="Toplam Müşteri"
+              value={stats.totalCustomers}
+              color="bg-blue-100"
+              icon={<svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>}
+            />
+            <StatCard
+              title="Toplam Ekipman"
+              value={stats.totalEquipments}
+              color="bg-green-100"
+              icon={<svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>}
+            />
+            <StatCard
+              title="Aktif Denetçi"
+              value={stats.availableInspectors}
+              color="bg-purple-100"
+              icon={<svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>}
+            />
+            <StatCard
+              title="Bekleyen Denetim"
+              value={stats.pendingInspections}
+              color="bg-yellow-100"
+              icon={<svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>}
+            />
+          </div>
+
+          {/* Quick Actions */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Hızlı İşlemler</h3>
+              <div className="space-y-3">
+                <button
+                  onClick={() => setShowCreateInspection(true)}
+                  className="w-full flex items-center px-4 py-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100"
+                >
+                  <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                  </svg>
+                  Yeni Denetim Planla
+                </button>
+                <button
+                  onClick={() => setActiveTab('tracking')}
+                  className="w-full flex items-center px-4 py-3 bg-green-50 text-green-700 rounded-lg hover:bg-green-100"
+                >
+                  <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                  </svg>
+                  Denetimleri Takip Et
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Denetçi Durumu</h3>
+              <div className="space-y-3">
+                {inspectors.slice(0, 3).map((inspector) => (
+                  <div key={inspector.id} className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center mr-3">
+                        <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{inspector.full_name}</p>
+                        <p className="text-xs text-gray-500">{inspector.email}</p>
+                      </div>
+                    </div>
+                    <span className={`px-2 py-1 text-xs rounded-full ${
+                      inspector.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {inspector.is_active ? 'Aktif' : 'Pasif'}
+                    </span>
+                  </div>
+                ))}
+                {inspectors.length === 0 && (
+                  <p className="text-sm text-gray-500">Henüz denetçi kaydedilmemiş</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Planning Dashboard Tab */}
+      {activeTab === 'planning' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Customer-Equipment List */}
+            <div className="bg-white rounded-xl shadow-sm">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900">Müşteri-Ekipman Kombinasyonları</h3>
+              </div>
+              <div className="p-6">
+                <div className="space-y-4 max-h-96 overflow-y-auto">
+                  {customers.map((customer) => (
+                    <div key={customer.id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium text-gray-900">{customer.company_name}</h4>
+                        <span className="text-sm text-gray-500">{customer.equipments?.length || 0} ekipman</span>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-2">{customer.contact_person} • {customer.phone}</p>
+                      
+                      {customer.equipments && customer.equipments.length > 0 ? (
+                        <div className="space-y-2">
+                          {customer.equipments.map((equipment, index) => (
+                            <div key={index} className="flex items-center justify-between bg-gray-50 rounded p-2">
+                              <div className="text-sm">
+                                <span className="font-medium">{equipment.equipment_type || equipment.muayene_alt_alani || 'Bilinmeyen Ekipman'}</span>
+                                {equipment.serial_number && <span className="text-gray-500 ml-2">SN: {equipment.serial_number}</span>}
+                              </div>
+                              <button
+                                onClick={() => {
+                                  // Set selected customer and equipment for planning
+                                  console.log('Plan inspection for:', customer.company_name, equipment);
+                                  setShowCreateInspection(true);
+                                }}
+                                className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                              >
+                                Denetim Planla
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500 italic">Ekipman bilgisi yok</p>
+                      )}
+                    </div>
+                  ))}
+                  {customers.length === 0 && (
+                    <div className="text-center py-8">
+                      <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 515.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 919.288 0M15 7a3 3 0 11-6 0 3 3 0 616 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                      </svg>
+                      <h3 className="mt-2 text-sm font-medium text-gray-900">Müşteri bulunamadı</h3>
+                      <p className="mt-1 text-sm text-gray-500">Önce müşteri ekleyip ekipman bilgilerini tanımlayın.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Inspector Availability */}
+            <div className="bg-white rounded-xl shadow-sm">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900">Denetçi Listesi ve Müsaitlik</h3>
+              </div>
+              <div className="p-6">
+                <div className="space-y-4">
+                  {inspectors.map((inspector) => {
+                    const inspectorInspections = inspections.filter(
+                      inspection => inspection.inspector_id === inspector.id && 
+                      ['beklemede', 'devam_ediyor'].includes(inspection.status)
+                    );
+                    
+                    return (
+                      <div key={inspector.id} className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center">
+                            <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center mr-3">
+                              <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                              </svg>
+                            </div>
+                            <div>
+                              <h4 className="font-medium text-gray-900">{inspector.full_name}</h4>
+                              <p className="text-sm text-gray-500">{inspector.email}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <span className={`inline-block px-2 py-1 text-xs rounded-full mb-1 ${
+                              inspector.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {inspector.is_active ? 'Aktif' : 'Pasif'}
+                            </span>
+                            <p className="text-sm text-gray-600">{inspectorInspections.length} aktif denetim</p>
+                          </div>
+                        </div>
+                        
+                        {inspectorInspections.length > 0 && (
+                          <div className="bg-gray-50 rounded p-2 mt-2">
+                            <p className="text-xs text-gray-600 font-medium mb-1">Mevcut Denetimler:</p>
+                            {inspectorInspections.slice(0, 2).map((inspection) => (
+                              <div key={inspection.id} className="text-xs text-gray-600">
+                                • {inspection.equipment_info?.equipment_type || 'Ekipman'} - {new Date(inspection.planned_date).toLocaleDateString('tr-TR')}
+                              </div>
+                            ))}
+                            {inspectorInspections.length > 2 && (
+                              <p className="text-xs text-gray-500">+{inspectorInspections.length - 2} diğer</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  
+                  {inspectors.length === 0 && (
+                    <div className="text-center py-8">
+                      <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                      </svg>
+                      <h3 className="mt-2 text-sm font-medium text-gray-900">Denetçi bulunamadı</h3>
+                      <p className="mt-1 text-sm text-gray-500">Admin panelinden denetçi kullanıcısı ekleyin.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tracking Tab */}
+      {activeTab === 'tracking' && (
+        <InspectionTracking inspections={inspections} customers={customers} inspectors={inspectors} onRefresh={fetchData} />
+      )}
+    </div>
+  );
+};
+
 const PlanlamaDashboard = () => {
   const [stats, setStats] = useState({});
   const [customers, setCustomers] = useState([]);

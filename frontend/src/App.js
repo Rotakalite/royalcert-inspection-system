@@ -2610,16 +2610,41 @@ const PlanlamaDashboard = () => {
 };
 
 const DynamicInspectionForm = ({ inspectionId, onBack, onSave }) => {
+  // Phase 6.2 & 6.3: Enhanced Dynamic Form with Progress Tracking
   const [formData, setFormData] = useState(null);
   const [formResults, setFormResults] = useState({});
   const [generalInfo, setGeneralInfo] = useState({});
   const [equipmentInfo, setEquipmentInfo] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
+  const [lastSaved, setLastSaved] = useState(null);
+  const [completionPercentage, setCompletionPercentage] = useState(0);
+  const [activeSection, setActiveSection] = useState(null);
+  
+  // Phase 6.2: Photo upload states
+  const [uploadingPhotos, setUploadingPhotos] = useState({});
+  const [photos, setPhotos] = useState({});
 
   useEffect(() => {
     fetchFormData();
   }, [inspectionId]);
+
+  // Phase 6.3: Auto-save functionality
+  useEffect(() => {
+    if (autoSaveEnabled && formData && !loading) {
+      const autoSaveTimer = setTimeout(() => {
+        handleSave(true); // Save as draft
+      }, 30000); // Auto-save every 30 seconds
+      
+      return () => clearTimeout(autoSaveTimer);
+    }
+  }, [formResults, generalInfo, equipmentInfo, autoSaveEnabled, formData, loading]);
+
+  // Phase 6.3: Calculate completion percentage
+  useEffect(() => {
+    calculateCompletionPercentage();
+  }, [formResults, generalInfo]);
 
   const fetchFormData = async () => {
     try {
@@ -2628,6 +2653,351 @@ const DynamicInspectionForm = ({ inspectionId, onBack, onSave }) => {
       setFormData(data);
       
       // Initialize form results
+      if (data.form_data) {
+        setFormResults(data.form_data || {});
+        setGeneralInfo(data.general_info || {});
+        setEquipmentInfo(data.equipment_info || {});
+        setPhotos(data.photos || {});
+      }
+      
+      setLoading(false);
+    } catch (error) {
+      console.error('Form data error:', error);
+      setLoading(false);
+    }
+  };
+
+  // Phase 6.3: Completion percentage calculation
+  const calculateCompletionPercentage = () => {
+    if (!formData) return;
+
+    const totalItems = formData.control_items ? formData.control_items.length : 0;
+    const completedItems = Object.keys(formResults).length;
+    const hasGeneralInfo = generalInfo.defects || generalInfo.notes || generalInfo.conclusion;
+    
+    let percentage = totalItems > 0 ? (completedItems / totalItems) * 80 : 0; // 80% for control items
+    if (hasGeneralInfo) percentage += 20; // 20% for general info
+    
+    setCompletionPercentage(Math.min(Math.round(percentage), 100));
+  };
+
+  // Phase 6.3: Enhanced save with draft mode
+  const handleSave = async (isDraft = false) => {
+    if (saving) return;
+    
+    setSaving(true);
+    try {
+      const saveData = {
+        form_data: formResults,
+        general_info: generalInfo,
+        equipment_info: equipmentInfo,
+        photos: photos,
+        is_draft: isDraft,
+        completion_percentage: completionPercentage,
+        last_saved: new Date().toISOString()
+      };
+
+      await api.put(`/inspections/${inspectionId}/form`, saveData);
+      
+      setLastSaved(new Date());
+      
+      if (!isDraft) {
+        // Update inspection status to completed
+        await api.put(`/inspections/${inspectionId}`, { 
+          status: 'rapor_yazildi',
+          completed_at: new Date().toISOString()
+        });
+        alert('Denetim raporu başarıyla tamamlandı!');
+        onSave && onSave();
+      } else {
+        // Silent save for drafts - just update last saved time
+        console.log('Auto-saved at:', new Date().toLocaleTimeString('tr-TR'));
+      }
+    } catch (error) {
+      console.error('Save error:', error);
+      if (!isDraft) {
+        alert('Kaydetme hatası: ' + (error.response?.data?.detail || 'Bilinmeyen hata'));
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Phase 6.2: Photo upload handler
+  const handlePhotoUpload = async (itemId, file) => {
+    if (!file) return;
+    
+    setUploadingPhotos(prev => ({...prev, [itemId]: true}));
+    
+    try {
+      // Convert file to base64 for storage
+      const base64 = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.readAsDataURL(file);
+      });
+      
+      setPhotos(prev => ({
+        ...prev,
+        [itemId]: [...(prev[itemId] || []), {
+          id: Date.now(),
+          data: base64,
+          filename: file.name,
+          uploaded_at: new Date().toISOString()
+        }]
+      }));
+      
+      // Trigger auto-save after photo upload
+      setTimeout(() => handleSave(true), 1000);
+      
+    } catch (error) {
+      console.error('Photo upload error:', error);
+      alert('Fotoğraf yükleme hatası');
+    } finally {
+      setUploadingPhotos(prev => ({...prev, [itemId]: false}));
+    }
+  };
+
+  const removePhoto = (itemId, photoId) => {
+    setPhotos(prev => ({
+      ...prev,
+      [itemId]: prev[itemId]?.filter(photo => photo.id !== photoId) || []
+    }));
+  };
+
+  // Phase 6.3: Section-based save
+  const handleSectionSave = (sectionId) => {
+    console.log(`Saving section: ${sectionId}`);
+    handleSave(true);
+    alert(`Kategori ${sectionId} kaydedildi`);
+  };
+
+  const getItemCategory = (itemId) => {
+    if (itemId <= 6) return 'A';
+    if (itemId <= 12) return 'B';  
+    if (itemId <= 18) return 'C';
+    if (itemId <= 24) return 'D';
+    if (itemId <= 30) return 'E';
+    if (itemId <= 36) return 'F';
+    if (itemId <= 42) return 'G';
+    return 'H';
+  };
+
+  const handleResultChange = (itemId, field, value) => {
+    setFormResults(prev => ({
+      ...prev,
+      [itemId]: {
+        ...prev[itemId],
+        item_id: parseInt(itemId),
+        category: getItemCategory(parseInt(itemId)),
+        [field]: value,
+        updated_at: new Date().toISOString()
+      }
+    }));
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <img 
+            src="https://customer-assets.emergentagent.com/job_yeni-yazilim/artifacts/7675i2kn_WhatsApp%20G%C3%B6rsel%202025-08-04%20saat%2012.57.00_7b510c6c.jpg"
+            alt="RoyalCert Logo"
+            className="w-16 h-16 object-contain mx-auto mb-4"
+          />
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">Denetim formu yükleniyor...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!formData) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-600">Form verisi bulunamadı</p>
+        <button
+          onClick={onBack}
+          className="mt-4 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+        >
+          Geri Dön
+        </button>
+      </div>
+    );
+  }
+
+  // Group items by category for Phase 6.2: 8 categories
+  const categorizedItems = {};
+  if (formData.control_items) {
+    formData.control_items.forEach((item, index) => {
+      const category = getItemCategory(index + 1);
+      if (!categorizedItems[category]) {
+        categorizedItems[category] = [];
+      }
+      categorizedItems[category].push({...item, id: index + 1});
+    });
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header with Progress */}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {formData.equipment_type} Muayene Formu
+            </h1>
+            <p className="text-gray-600">
+              {formData.customer_name} - {formData.equipment_serial || 'Seri No Belirtilmemiş'}
+            </p>
+          </div>
+          <button
+            onClick={onBack}
+            className="px-4 py-2 text-gray-600 hover:text-gray-800"
+          >
+            ← Geri Dön
+          </button>
+        </div>
+        
+        {/* Phase 6.3: Progress Bar */}
+        <div className="bg-gray-200 rounded-full h-3 mb-4">
+          <div 
+            className="bg-blue-600 h-3 rounded-full transition-all duration-300"
+            style={{ width: `${completionPercentage}%` }}
+          ></div>
+        </div>
+        <div className="flex justify-between items-center text-sm">
+          <span className="text-gray-600">Tamamlanma: %{completionPercentage}</span>
+          <div className="flex items-center space-x-4">
+            <span className={`px-2 py-1 rounded-full text-xs ${
+              autoSaveEnabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+            }`}>
+              {autoSaveEnabled ? 'Otomatik Kayıt Açık' : 'Otomatik Kayıt Kapalı'}
+            </span>
+            {lastSaved && (
+              <span className="text-gray-500 text-xs">
+                Son kayıt: {lastSaved.toLocaleTimeString('tr-TR')}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Phase 6.2: Control Items by Categories (A-H) */}
+      {Object.keys(categorizedItems).sort().map((category) => (
+        <div key={category} className="bg-white rounded-xl shadow-sm">
+          <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <h3 className="text-lg font-semibold text-gray-900">
+              KATEGORİ {category} ({categorizedItems[category].length} madde)
+            </h3>
+            <button
+              onClick={() => handleSectionSave(category)}
+              className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+            >
+              Bu Kategoriyi Kaydet
+            </button>
+          </div>
+          
+          <div className="p-6">
+            <div className="space-y-6">
+              {categorizedItems[category].map((item) => (
+                <div key={item.id} className="border border-gray-200 rounded-lg p-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    {/* Control Item */}
+                    <div className="lg:col-span-2">
+                      <h4 className="font-medium text-gray-900 mb-2">
+                        {item.id}. {item.text}
+                      </h4>
+                      
+                      {/* U/UD/U.Y Dropdown - Phase 6.2 */}
+                      <div className="flex items-center space-x-4 mb-3">
+                        <label className="text-sm font-medium text-gray-700">Sonuç:</label>
+                        <select
+                          value={formResults[item.id]?.result || ''}
+                          onChange={(e) => handleResultChange(item.id, 'result', e.target.value)}
+                          className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-900 focus:border-transparent"
+                        >
+                          <option value="">Seçin...</option>
+                          <option value="U">U (Uygun)</option>
+                          <option value="UD">UD (Uygun Değil)</option>
+                          <option value="U.Y">U.Y (Uygulanamaz)</option>
+                        </select>
+                      </div>
+                      
+                      {/* Comment Text Area - Phase 6.2 */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Açıklama:
+                        </label>
+                        <textarea
+                          value={formResults[item.id]?.comment || ''}
+                          onChange={(e) => handleResultChange(item.id, 'comment', e.target.value)}
+                          rows="2"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-900 focus:border-transparent"
+                          placeholder="Bu madde ile ilgili açıklama yazın..."
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Photo Upload Section - Phase 6.2 */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Fotoğraflar:
+                      </label>
+                      
+                      <div className="space-y-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => e.target.files[0] && handlePhotoUpload(item.id, e.target.files[0])}
+                          className="hidden"
+                          id={`photo-${item.id}`}
+                        />
+                        <label
+                          htmlFor={`photo-${item.id}`}
+                          className="flex items-center justify-center px-3 py-2 border border-dashed border-gray-300 rounded-md cursor-pointer hover:border-blue-400 text-sm"
+                        >
+                          {uploadingPhotos[item.id] ? (
+                            'Yükleniyor...'
+                          ) : (
+                            <>
+                              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
+                              </svg>
+                              Fotoğraf Ekle
+                            </>
+                          )}
+                        </label>
+                        
+                        {/* Photo Preview */}
+                        {photos[item.id] && photos[item.id].length > 0 && (
+                          <div className="grid grid-cols-2 gap-2">
+                            {photos[item.id].map((photo) => (
+                              <div key={photo.id} className="relative">
+                                <img
+                                  src={photo.data}
+                                  alt={photo.filename}
+                                  className="w-full h-16 object-cover rounded border"
+                                />
+                                <button
+                                  onClick={() => removePhoto(item.id, photo.id)}
+                                  className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-5 h-5 text-xs hover:bg-red-700"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ))}
       if (data.existing_data && data.existing_data.form_results) {
         const results = {};
         data.existing_data.form_results.forEach(result => {

@@ -3190,14 +3190,14 @@ const DynamicInspectionForm = ({ inspectionId, onBack, onSave }) => {
   };
 
   const getItemCategory = (itemId) => {
-    if (itemId <= 6) return 'A';
-    if (itemId <= 12) return 'B';  
-    if (itemId <= 18) return 'C';
-    if (itemId <= 24) return 'D';
-    if (itemId <= 30) return 'E';
-    if (itemId <= 36) return 'F';
-    if (itemId <= 42) return 'G';
-    return 'H';
+    if (itemId <= 8) return 'A';
+    if (itemId <= 16) return 'B';  
+    if (itemId <= 24) return 'C';
+    if (itemId <= 32) return 'D';
+    if (itemId <= 40) return 'E';
+    if (itemId <= 48) return 'F';
+    if (itemId <= 53) return 'G';  // 49-53 arası G kategorisi
+    return 'H';  // 53'ten büyük itemler için
   };
 
   if (loading) {

@@ -10,6 +10,8 @@ from jose import JWTError, jwt
 import os
 import uuid
 import logging
+import pandas as pd
+import io
 from dotenv import load_dotenv
 
 # Load environment variables

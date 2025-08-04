@@ -959,6 +959,19 @@ const PlanlamaDashboard = () => {
     }
   };
 
+  // Show Customer Management
+  if (showCustomerManagement) {
+    return (
+      <CustomerManagement 
+        onBack={() => {
+          setShowCustomerManagement(false);
+          fetchStats();
+          fetchCustomers();
+        }} 
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold text-gray-900">Planlama Dashboard</h1>

@@ -1398,7 +1398,7 @@ def parse_word_document(file_content: bytes, filename: str) -> dict:
         print(f"Error parsing Word document {filename}: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Failed to parse Word document: {str(e)}")
 
-def parse_pdf_document(file_content: bytes, filename: str) -> dict:
+# OLD FUNCTION REMOVED - REPLACED BY parse_pdf_document_dynamic
     """DYNAMIC PDF parser - Formda ne varsa o! Hiçbir sınır yok!"""
     
     print(f"DEBUG: Starting DYNAMIC PDF parsing for {filename}")

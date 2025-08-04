@@ -1625,7 +1625,9 @@ async def upload_template_document(
             )
         
         # Insert template into database
+        print(f"DEBUG: About to insert template with keys: {list(template_data.keys())}")
         await db.equipment_templates.insert_one(template_data)
+        print(f"DEBUG: Template inserted successfully")
         
         return {
             "message": "Template uploaded and parsed successfully",

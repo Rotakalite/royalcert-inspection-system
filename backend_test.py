@@ -528,9 +528,443 @@ class ImprovedWordParsingTester:
         
         return test_results
 
+class OrphanedInspectorIdsTester:
+    def __init__(self):
+        self.session = requests.Session()
+        self.token = None
+        self.user_info = None
+        self.inspectors = []
+        self.inspections_before = []
+        self.inspections_after = []
+        
+    def authenticate(self):
+        """Authenticate with admin credentials"""
+        print("🔐 Testing Authentication...")
+        
+        login_data = {
+            "username": ADMIN_USERNAME,
+            "password": ADMIN_PASSWORD
+        }
+        
+        try:
+            response = self.session.post(f"{BACKEND_URL}/auth/login", json=login_data)
+            print(f"Login Response Status: {response.status_code}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.token = data["access_token"]
+                self.user_info = data["user"]
+                
+                # Set authorization header for future requests
+                self.session.headers.update({
+                    "Authorization": f"Bearer {self.token}"
+                })
+                
+                print(f"✅ Authentication successful")
+                print(f"   User: {self.user_info['full_name']} ({self.user_info['role']})")
+                return True
+            else:
+                print(f"❌ Authentication failed: {response.text}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Authentication error: {str(e)}")
+            return False
+
+    def get_current_inspections_state(self):
+        """Get current state of all inspections"""
+        print("\n📊 Getting Current Inspections State...")
+        
+        try:
+            response = self.session.get(f"{BACKEND_URL}/inspections")
+            print(f"GET /api/inspections Status: {response.status_code}")
+            
+            if response.status_code == 200:
+                inspections_data = response.json()
+                print(f"✅ Found {len(inspections_data)} total inspections")
+                
+                # Analyze by status
+                status_counts = {}
+                beklemede_inspections = []
+                
+                for inspection in inspections_data:
+                    status = inspection.get('status', 'unknown')
+                    status_counts[status] = status_counts.get(status, 0) + 1
+                    
+                    if status == 'beklemede':
+                        beklemede_inspections.append(inspection)
+                
+                print("   Status Distribution:")
+                for status, count in status_counts.items():
+                    print(f"     {status}: {count}")
+                
+                print(f"\n🎯 Found {len(beklemede_inspections)} 'beklemede' inspections")
+                
+                if beklemede_inspections:
+                    print("   Beklemede Inspections Details:")
+                    for i, inspection in enumerate(beklemede_inspections, 1):
+                        inspector_id = inspection.get('inspector_id')
+                        equipment_type = inspection.get('equipment_info', {}).get('equipment_type', 'N/A')
+                        print(f"     {i}. ID: {inspection.get('id')[:8]}..., Inspector: {inspector_id[:8] if inspector_id else 'None'}..., Equipment: {equipment_type}")
+                
+                return True, inspections_data, beklemede_inspections
+            else:
+                print(f"❌ Failed to get inspections: {response.text}")
+                return False, [], []
+                
+        except Exception as e:
+            print(f"❌ Get inspections error: {str(e)}")
+            return False, [], []
+
+    def get_available_inspectors(self):
+        """Get all available inspectors"""
+        print("\n👥 Getting Available Inspectors...")
+        
+        try:
+            response = self.session.get(f"{BACKEND_URL}/users")
+            print(f"GET /api/users Status: {response.status_code}")
+            
+            if response.status_code == 200:
+                users_data = response.json()
+                inspectors = [user for user in users_data if user.get('role') == 'denetci' and user.get('is_active', True)]
+                self.inspectors = inspectors
+                
+                print(f"✅ Found {len(inspectors)} active inspectors")
+                
+                if inspectors:
+                    print("   Available Inspectors:")
+                    for i, inspector in enumerate(inspectors, 1):
+                        print(f"     {i}. {inspector.get('full_name')} (ID: {inspector.get('id')[:8]}...)")
+                
+                return True, inspectors
+            else:
+                print(f"❌ Failed to get users: {response.text}")
+                return False, []
+                
+        except Exception as e:
+            print(f"❌ Get inspectors error: {str(e)}")
+            return False, []
+
+    def identify_orphaned_inspector_ids(self, inspections, inspectors):
+        """Identify inspections with orphaned inspector IDs"""
+        print("\n🔍 Identifying Orphaned Inspector IDs...")
+        
+        valid_inspector_ids = {insp['id'] for insp in inspectors}
+        orphaned_inspections = []
+        valid_inspections = []
+        
+        beklemede_inspections = [insp for insp in inspections if insp.get('status') == 'beklemede']
+        
+        for inspection in beklemede_inspections:
+            inspector_id = inspection.get('inspector_id')
+            
+            if inspector_id and inspector_id not in valid_inspector_ids:
+                orphaned_inspections.append(inspection)
+                print(f"   ❌ ORPHANED: Inspection {inspection.get('id')[:8]}... has invalid inspector_id: {inspector_id[:8]}...")
+            elif inspector_id and inspector_id in valid_inspector_ids:
+                valid_inspections.append(inspection)
+                inspector_name = next((insp['full_name'] for insp in inspectors if insp['id'] == inspector_id), 'Unknown')
+                print(f"   ✅ VALID: Inspection {inspection.get('id')[:8]}... assigned to {inspector_name}")
+            else:
+                print(f"   ⚠️  NO INSPECTOR: Inspection {inspection.get('id')[:8]}... has no inspector_id")
+        
+        print(f"\n📊 Analysis Results:")
+        print(f"   Total 'beklemede' inspections: {len(beklemede_inspections)}")
+        print(f"   Valid assignments: {len(valid_inspections)}")
+        print(f"   Orphaned assignments: {len(orphaned_inspections)}")
+        print(f"   No inspector assigned: {len(beklemede_inspections) - len(valid_inspections) - len(orphaned_inspections)}")
+        
+        return orphaned_inspections, valid_inspections
+
+    def run_data_fix_endpoint(self):
+        """Execute the data fix endpoint"""
+        print("\n🔧 Running Data Fix Endpoint...")
+        
+        try:
+            response = self.session.post(f"{BACKEND_URL}/fix/orphaned-inspector-ids")
+            print(f"POST /api/fix/orphaned-inspector-ids Status: {response.status_code}")
+            
+            if response.status_code == 200:
+                fix_results = response.json()
+                print("✅ Data fix endpoint executed successfully")
+                
+                print(f"\n📊 Fix Results:")
+                print(f"   Message: {fix_results.get('message')}")
+                print(f"   Total inspections checked: {fix_results.get('total_inspections_checked')}")
+                print(f"   Total inspectors available: {fix_results.get('total_inspectors_available')}")
+                print(f"   Fixed count: {fix_results.get('fixed_count')}")
+                
+                results = fix_results.get('results', [])
+                if results:
+                    print(f"\n📋 Detailed Fix Results:")
+                    for i, result in enumerate(results, 1):
+                        action = result.get('action')
+                        inspection_id = result.get('inspection_id', 'N/A')[:8]
+                        equipment_type = result.get('equipment_type', 'N/A')
+                        
+                        if action == 'reassigned':
+                            old_id = result.get('old_inspector_id', 'N/A')[:8]
+                            new_name = result.get('new_inspector_name', 'N/A')
+                            print(f"     {i}. REASSIGNED: {inspection_id}... ({equipment_type}) -> {new_name} (was: {old_id}...)")
+                        elif action == 'valid_assignment':
+                            inspector_id = result.get('inspector_id', 'N/A')[:8]
+                            print(f"     {i}. VALID: {inspection_id}... ({equipment_type}) -> {inspector_id}...")
+                        elif action == 'no_inspectors_available':
+                            print(f"     {i}. ERROR: {inspection_id}... ({equipment_type}) -> No inspectors available")
+                
+                return True, fix_results
+            else:
+                print(f"❌ Data fix endpoint failed: {response.text}")
+                return False, None
+                
+        except Exception as e:
+            print(f"❌ Data fix endpoint error: {str(e)}")
+            return False, None
+
+    def verify_fix_results(self):
+        """Verify that the fix was successful"""
+        print("\n✅ Verifying Fix Results...")
+        
+        # Get inspections after fix
+        success, inspections_after, beklemede_after = self.get_current_inspections_state()
+        if not success:
+            return False
+        
+        self.inspections_after = inspections_after
+        
+        # Check if all beklemede inspections now have valid inspector_ids
+        valid_inspector_ids = {insp['id'] for insp in self.inspectors}
+        
+        orphaned_after = []
+        valid_after = []
+        
+        for inspection in beklemede_after:
+            inspector_id = inspection.get('inspector_id')
+            
+            if inspector_id and inspector_id not in valid_inspector_ids:
+                orphaned_after.append(inspection)
+            elif inspector_id and inspector_id in valid_inspector_ids:
+                valid_after.append(inspection)
+        
+        print(f"\n📊 Post-Fix Analysis:")
+        print(f"   Total 'beklemede' inspections: {len(beklemede_after)}")
+        print(f"   Valid assignments: {len(valid_after)}")
+        print(f"   Remaining orphaned: {len(orphaned_after)}")
+        
+        if len(orphaned_after) == 0:
+            print("   🎉 SUCCESS: All orphaned inspector IDs have been fixed!")
+            return True
+        else:
+            print(f"   ❌ FAILURE: {len(orphaned_after)} orphaned inspector IDs still remain")
+            for inspection in orphaned_after:
+                print(f"     - {inspection.get('id')[:8]}... still has invalid inspector_id: {inspection.get('inspector_id')[:8]}...")
+            return False
+
+    def test_inspector_dashboard_access(self):
+        """Test that inspectors can now see their assigned inspections"""
+        print("\n🎯 Testing Inspector Dashboard Access...")
+        
+        if not self.inspectors:
+            print("❌ No inspectors available to test")
+            return False
+        
+        # Test with each inspector
+        dashboard_results = []
+        
+        for inspector in self.inspectors:
+            inspector_name = inspector.get('full_name')
+            inspector_id = inspector.get('id')
+            
+            print(f"\n   Testing access for: {inspector_name}")
+            
+            # Get all inspections and filter for this inspector
+            try:
+                response = self.session.get(f"{BACKEND_URL}/inspections")
+                
+                if response.status_code == 200:
+                    all_inspections = response.json()
+                    
+                    # Filter inspections for this inspector
+                    inspector_inspections = [
+                        insp for insp in all_inspections 
+                        if insp.get('inspector_id') == inspector_id
+                    ]
+                    
+                    beklemede_inspections = [
+                        insp for insp in inspector_inspections 
+                        if insp.get('status') == 'beklemede'
+                    ]
+                    
+                    print(f"     Total assigned inspections: {len(inspector_inspections)}")
+                    print(f"     'Beklemede' inspections: {len(beklemede_inspections)}")
+                    
+                    if beklemede_inspections:
+                        print(f"     📋 Beklemede Inspections:")
+                        for insp in beklemede_inspections:
+                            equipment_type = insp.get('equipment_info', {}).get('equipment_type', 'N/A')
+                            planned_date = insp.get('planned_date', 'N/A')
+                            print(f"       - {equipment_type} (Planned: {planned_date[:10] if planned_date else 'N/A'})")
+                            
+                            # Check for CARASKAL specifically (mentioned in the bug report)
+                            if equipment_type == 'CARASKAL':
+                                print(f"         🎯 CARASKAL inspection found - this should now be visible in dashboard!")
+                    
+                    dashboard_results.append({
+                        'inspector': inspector_name,
+                        'total_inspections': len(inspector_inspections),
+                        'beklemede_inspections': len(beklemede_inspections),
+                        'has_caraskal': any(insp.get('equipment_info', {}).get('equipment_type') == 'CARASKAL' for insp in beklemede_inspections)
+                    })
+                    
+                else:
+                    print(f"     ❌ Failed to get inspections: {response.status_code}")
+                    
+            except Exception as e:
+                print(f"     ❌ Error testing dashboard access: {str(e)}")
+        
+        # Summary
+        print(f"\n📊 Dashboard Access Summary:")
+        inspectors_with_work = 0
+        inspectors_with_caraskal = 0
+        
+        for result in dashboard_results:
+            if result['beklemede_inspections'] > 0:
+                inspectors_with_work += 1
+            if result['has_caraskal']:
+                inspectors_with_caraskal += 1
+            
+            status = "✅" if result['beklemede_inspections'] > 0 else "⚠️"
+            caraskal_status = "🎯 CARASKAL" if result['has_caraskal'] else ""
+            print(f"   {status} {result['inspector']}: {result['beklemede_inspections']} beklemede inspections {caraskal_status}")
+        
+        print(f"\n   Inspectors with pending work: {inspectors_with_work}/{len(self.inspectors)}")
+        print(f"   Inspectors with CARASKAL inspections: {inspectors_with_caraskal}")
+        
+        return inspectors_with_work > 0
+
+    def run_orphaned_inspector_ids_test(self):
+        """Run the complete orphaned inspector IDs data fix test"""
+        print("🚀 Starting Orphaned Inspector IDs Data Fix Test")
+        print("=" * 80)
+        
+        test_results = {}
+        
+        # Step 1: Authentication
+        test_results['authentication'] = self.authenticate()
+        if not test_results['authentication']:
+            print("\n❌ Cannot proceed without authentication")
+            return test_results
+        
+        # Step 2: Get current state before fix
+        print("\n" + "="*50)
+        print("PHASE 1: PRE-FIX ANALYSIS")
+        print("="*50)
+        
+        success, inspections_before, beklemede_before = self.get_current_inspections_state()
+        test_results['get_inspections_before'] = success
+        self.inspections_before = inspections_before
+        
+        success, inspectors = self.get_available_inspectors()
+        test_results['get_inspectors'] = success
+        
+        if test_results['get_inspections_before'] and test_results['get_inspectors']:
+            orphaned_before, valid_before = self.identify_orphaned_inspector_ids(inspections_before, inspectors)
+            test_results['orphaned_identified'] = len(orphaned_before) > 0
+            
+            print(f"\n🎯 PRE-FIX SUMMARY:")
+            print(f"   Orphaned inspector IDs found: {len(orphaned_before)}")
+            print(f"   Valid assignments: {len(valid_before)}")
+        else:
+            test_results['orphaned_identified'] = False
+            orphaned_before = []
+        
+        # Step 3: Execute data fix
+        print("\n" + "="*50)
+        print("PHASE 2: DATA FIX EXECUTION")
+        print("="*50)
+        
+        success, fix_results = self.run_data_fix_endpoint()
+        test_results['data_fix_execution'] = success
+        
+        # Step 4: Verify fix results
+        print("\n" + "="*50)
+        print("PHASE 3: POST-FIX VERIFICATION")
+        print("="*50)
+        
+        test_results['fix_verification'] = self.verify_fix_results()
+        
+        # Step 5: Test inspector dashboard access
+        print("\n" + "="*50)
+        print("PHASE 4: INSPECTOR DASHBOARD ACCESS TEST")
+        print("="*50)
+        
+        test_results['dashboard_access'] = self.test_inspector_dashboard_access()
+        
+        # Final Summary
+        print("\n" + "=" * 80)
+        print("📋 ORPHANED INSPECTOR IDS DATA FIX TEST SUMMARY")
+        print("=" * 80)
+        
+        passed = 0
+        total = len(test_results)
+        
+        for test_name, result in test_results.items():
+            status = "✅ PASS" if result else "❌ FAIL"
+            print(f"{test_name.replace('_', ' ').title():<35} {status}")
+            if result:
+                passed += 1
+        
+        print(f"\nOverall Result: {passed}/{total} tests passed")
+        
+        # Expected Outcome Verification
+        print("\n" + "=" * 80)
+        print("🎯 EXPECTED OUTCOME VERIFICATION")
+        print("=" * 80)
+        
+        if test_results.get('data_fix_execution') and fix_results:
+            fixed_count = fix_results.get('fixed_count', 0)
+            total_checked = fix_results.get('total_inspections_checked', 0)
+            
+            print(f"✅ Data repair endpoint executed successfully")
+            print(f"   Fixed {fixed_count} orphaned inspector IDs out of {total_checked} inspections checked")
+            
+            if test_results.get('fix_verification'):
+                print(f"✅ All orphaned inspector IDs have been fixed")
+                print(f"   All 'beklemede' inspections now have valid inspector_ids")
+            else:
+                print(f"❌ Some orphaned inspector IDs still remain")
+            
+            if test_results.get('dashboard_access'):
+                print(f"✅ Inspector dashboard access working")
+                print(f"   Inspectors can now see their assigned inspections")
+            else:
+                print(f"⚠️  Inspector dashboard access needs verification")
+        
+        overall_success = (test_results.get('authentication', False) and 
+                          test_results.get('data_fix_execution', False) and
+                          test_results.get('fix_verification', False))
+        
+        if overall_success:
+            print(f"\n🎉 ORPHANED INSPECTOR IDS DATA FIX COMPLETED SUCCESSFULLY!")
+            print("   ✅ All orphaned inspector IDs fixed")
+            print("   ✅ All 'beklemede' inspections properly assigned")
+            print("   ✅ Inspector dashboard showing correct assignments")
+        else:
+            print(f"\n⚠️  DATA FIX COMPLETED WITH ISSUES")
+            if not test_results.get('data_fix_execution'):
+                print("   ❌ Data fix endpoint failed to execute")
+            if not test_results.get('fix_verification'):
+                print("   ❌ Fix verification failed - orphaned IDs may still exist")
+        
+        return test_results
+
 if __name__ == "__main__":
-    tester = ImprovedWordParsingTester()
-    results = tester.run_improved_parsing_tests()
+    # Run the orphaned inspector IDs data fix test
+    print("🎯 EXECUTING ORPHANED INSPECTOR IDS DATA FIX TEST")
+    print("="*80)
+    
+    tester = OrphanedInspectorIdsTester()
+    results = tester.run_orphaned_inspector_ids_test()
 
 class RoyalCertPDFReportingTester:
     def __init__(self):

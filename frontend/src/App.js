@@ -336,6 +336,26 @@ const AdminDashboard = () => {
           >
             Ekipman Template'leri
           </button>
+          <button
+            onClick={() => setActiveTab('customers')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'customers'
+                ? 'border-red-900 text-red-900'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Müşteri Yönetimi
+          </button>
+          <button
+            onClick={() => setActiveTab('inspections')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'inspections'
+                ? 'border-red-900 text-red-900'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Denetim Planlama
+          </button>
         </nav>
       </div>
 

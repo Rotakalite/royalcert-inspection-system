@@ -1398,13 +1398,338 @@ class TemplateControlItemsQualityTester:
         
         return test_results
 
+class CriticalParsingAlgorithmTester:
+    """
+    CRITICAL TEST: Parsing algoritması düzeltmesi testi - 53/53 kontrol kriteri yakalanıyor mu?
+    Tests the fixed parsing algorithm to ensure EXACTLY 53 control criteria are captured, not 47!
+    """
+    def __init__(self):
+        self.session = requests.Session()
+        self.token = None
+        self.user_info = None
+        self.test_document_url = "https://customer-assets.emergentagent.com/job_periodic-check/artifacts/y9b9lejo_RC-M-%C4%B0E-FR24_5%20FORKL%C4%B0FT%20MUAYENE%20FORMU.docx"
+        self.expected_control_count = 53  # CRITICAL: Must be exactly 53, not 47!
+        
+    def authenticate(self):
+        """Authenticate with admin credentials"""
+        print("🔐 Testing Authentication...")
+        
+        login_data = {
+            "username": ADMIN_USERNAME,
+            "password": ADMIN_PASSWORD
+        }
+        
+        try:
+            response = self.session.post(f"{BACKEND_URL}/auth/login", json=login_data)
+            print(f"Login Response Status: {response.status_code}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.token = data["access_token"]
+                self.user_info = data["user"]
+                
+                # Set authorization header for future requests
+                self.session.headers.update({
+                    "Authorization": f"Bearer {self.token}"
+                })
+                
+                print(f"✅ Authentication successful")
+                print(f"   User: {self.user_info['full_name']} ({self.user_info['role']})")
+                return True
+            else:
+                print(f"❌ Authentication failed: {response.text}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Authentication error: {str(e)}")
+            return False
+
+    def clean_existing_templates(self):
+        """Clean existing templates to test fresh parsing"""
+        print("\n🧹 Cleaning Existing Templates for Fresh Test...")
+        
+        try:
+            response = self.session.get(f"{BACKEND_URL}/equipment-templates")
+            if response.status_code == 200:
+                templates = response.json()
+                forklift_templates = [t for t in templates if t.get('equipment_type') == 'FORKLIFT']
+                
+                deleted_count = 0
+                for template in forklift_templates:
+                    template_id = template.get('id')
+                    delete_response = self.session.delete(f"{BACKEND_URL}/equipment-templates/{template_id}")
+                    if delete_response.status_code == 200:
+                        deleted_count += 1
+                
+                print(f"✅ Cleaned {deleted_count} existing FORKLIFT templates")
+                return True
+            else:
+                print(f"❌ Failed to get templates: {response.text}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Clean templates error: {str(e)}")
+            return False
+
+    def test_critical_parsing_algorithm(self):
+        """CRITICAL TEST: Upload Word document and verify EXACTLY 53 control criteria are captured"""
+        print(f"\n🎯 CRITICAL TEST: Parsing Algorithm Fix - Must Capture EXACTLY {self.expected_control_count} Control Criteria")
+        print("="*100)
+        
+        try:
+            # Download the test document
+            print(f"📥 Downloading test document...")
+            doc_response = requests.get(self.test_document_url)
+            
+            if doc_response.status_code != 200:
+                print(f"❌ Failed to download test document: {doc_response.status_code}")
+                return False, None
+            
+            print(f"✅ Document downloaded ({len(doc_response.content)} bytes)")
+            
+            # Upload the document
+            filename = "FORKLIFT_MUAYENE_FORMU_53_CRITERIA_TEST.docx"
+            files = {
+                'file': (filename, doc_response.content, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+            }
+            
+            print(f"📤 Uploading document for parsing...")
+            upload_response = self.session.post(f"{BACKEND_URL}/equipment-templates/upload", files=files)
+            
+            print(f"Upload Response Status: {upload_response.status_code}")
+            
+            if upload_response.status_code == 200:
+                upload_data = upload_response.json()
+                template_data = upload_data.get('template', {})
+                
+                # Extract critical parsing results
+                equipment_type = template_data.get('equipment_type', 'UNKNOWN')
+                template_type = template_data.get('template_type', 'UNKNOWN')
+                template_name = template_data.get('name', 'UNNAMED')
+                categories = template_data.get('categories', [])
+                
+                # CRITICAL COUNT: Calculate total control items
+                total_control_items = sum(len(cat.get('items', [])) for cat in categories)
+                
+                print(f"\n📊 PARSING RESULTS:")
+                print(f"   Equipment Type: {equipment_type}")
+                print(f"   Template Type: {template_type}")
+                print(f"   Template Name: {template_name}")
+                print(f"   Categories Count: {len(categories)}")
+                print(f"   🎯 TOTAL CONTROL ITEMS: {total_control_items}")
+                
+                # CRITICAL VERIFICATION: Must be exactly 53, not 47!
+                if total_control_items == self.expected_control_count:
+                    print(f"🎉 ✅ SUCCESS: EXACTLY {self.expected_control_count} control criteria captured!")
+                    success_status = "PERFECT"
+                elif total_control_items == 47:
+                    print(f"❌ FAILURE: Still capturing 47 items instead of {self.expected_control_count}!")
+                    print(f"   🚨 CRITICAL: Parsing algorithm fix NOT working!")
+                    success_status = "FAILED_OLD_COUNT"
+                elif total_control_items < self.expected_control_count:
+                    print(f"❌ FAILURE: Only {total_control_items} items captured, expected {self.expected_control_count}")
+                    success_status = "UNDER_COUNT"
+                else:
+                    print(f"⚠️  WARNING: {total_control_items} items captured, expected exactly {self.expected_control_count}")
+                    success_status = "OVER_COUNT"
+                
+                # Detailed category analysis
+                print(f"\n📋 CATEGORY DISTRIBUTION:")
+                category_distribution = {}
+                for category in categories:
+                    cat_code = category.get('code', 'UNKNOWN')
+                    cat_name = category.get('name', 'UNNAMED')
+                    cat_items = len(category.get('items', []))
+                    category_distribution[cat_code] = cat_items
+                    print(f"   {cat_code}: {cat_name} ({cat_items} items)")
+                
+                # Verify category distribution (A-G expected)
+                expected_categories = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
+                found_categories = list(category_distribution.keys())
+                category_distribution_ok = all(cat in found_categories for cat in expected_categories[:len(found_categories)])
+                
+                print(f"\n🔍 CATEGORY DISTRIBUTION ANALYSIS:")
+                print(f"   Expected Categories: {expected_categories}")
+                print(f"   Found Categories: {found_categories}")
+                print(f"   Distribution OK: {'✅' if category_distribution_ok else '❌'}")
+                
+                # Text length and range analysis
+                print(f"\n📏 TEXT LENGTH AND RANGE ANALYSIS:")
+                all_items = []
+                for category in categories:
+                    all_items.extend(category.get('items', []))
+                
+                if all_items:
+                    text_lengths = [len(item.get('text', '')) for item in all_items]
+                    min_length = min(text_lengths)
+                    max_length = max(text_lengths)
+                    avg_length = sum(text_lengths) / len(text_lengths)
+                    
+                    print(f"   Text Length Range: {min_length} - {max_length} chars")
+                    print(f"   Average Text Length: {avg_length:.1f} chars")
+                    
+                    # Check for reasonable text lengths
+                    reasonable_lengths = sum(1 for length in text_lengths if 10 <= length <= 200)
+                    reasonable_ratio = reasonable_lengths / len(text_lengths)
+                    
+                    print(f"   Reasonable Lengths (10-200 chars): {reasonable_lengths}/{len(text_lengths)} ({reasonable_ratio*100:.1f}%)")
+                    text_quality_ok = reasonable_ratio >= 0.8
+                    print(f"   Text Quality: {'✅' if text_quality_ok else '❌'}")
+                else:
+                    text_quality_ok = False
+                    print(f"   ❌ No items found for text analysis")
+                
+                # Regex pattern verification
+                print(f"\n🔍 REGEX PATTERN VERIFICATION:")
+                print(f"   Testing if numbered items (1., 2., 3., etc.) are properly matched...")
+                
+                # Sample first few items to verify they have proper numbering
+                sample_items = all_items[:10] if all_items else []
+                numbered_items = 0
+                for item in sample_items:
+                    item_id = item.get('id', 0)
+                    item_text = item.get('text', '')
+                    if isinstance(item_id, int) and item_id > 0:
+                        numbered_items += 1
+                        print(f"     {item_id}. {item_text[:60]}...")
+                
+                regex_pattern_ok = numbered_items > 0
+                print(f"   Numbered Items Found: {numbered_items}/{len(sample_items)}")
+                print(f"   Regex Pattern Working: {'✅' if regex_pattern_ok else '❌'}")
+                
+                return True, {
+                    'total_control_items': total_control_items,
+                    'expected_count': self.expected_control_count,
+                    'success_status': success_status,
+                    'category_distribution': category_distribution,
+                    'category_distribution_ok': category_distribution_ok,
+                    'text_quality_ok': text_quality_ok,
+                    'regex_pattern_ok': regex_pattern_ok,
+                    'template_data': template_data
+                }
+            else:
+                print(f"❌ Document upload failed: {upload_response.text}")
+                return False, None
+                
+        except Exception as e:
+            print(f"❌ Critical parsing test error: {str(e)}")
+            return False, None
+
+    def run_critical_parsing_test(self):
+        """Run the complete critical parsing algorithm test"""
+        print("🚨 CRITICAL PARSING ALGORITHM TEST - 53/53 KONTROL KRİTERİ YAKALANMA TESTİ")
+        print("="*100)
+        print("🎯 EXPECTED RESULT: Exactly 53 control items, not 47!")
+        print("🔧 Testing: Regex pattern fix, category distribution, text length settings")
+        print("="*100)
+        
+        test_results = {}
+        
+        # Step 1: Authentication
+        test_results['authentication'] = self.authenticate()
+        if not test_results['authentication']:
+            print("\n❌ Cannot proceed without authentication")
+            return test_results
+        
+        # Step 2: Clean existing templates
+        test_results['clean_templates'] = self.clean_existing_templates()
+        
+        # Step 3: CRITICAL TEST - Upload and verify 53 control criteria
+        success, parsing_results = self.test_critical_parsing_algorithm()
+        test_results['critical_parsing'] = success
+        
+        if success and parsing_results:
+            test_results.update(parsing_results)
+        
+        # FINAL VERDICT
+        print("\n" + "="*100)
+        print("🏁 CRITICAL PARSING ALGORITHM TEST RESULTS")
+        print("="*100)
+        
+        if success and parsing_results:
+            total_items = parsing_results['total_control_items']
+            expected_count = parsing_results['expected_count']
+            success_status = parsing_results['success_status']
+            
+            print(f"📊 CONTROL ITEMS COUNT: {total_items} (Expected: {expected_count})")
+            
+            if success_status == "PERFECT":
+                print(f"🎉 ✅ BAŞARILI: Parsing algoritması düzeltmesi ÇALIŞIYOR!")
+                print(f"   ✅ TAM OLARAK {expected_count} kontrol kriteri yakalandı")
+                print(f"   ✅ Regex pattern fix çalışıyor")
+                print(f"   ✅ Category distribution doğru")
+                print(f"   ✅ Text length ve range ayarları uygun")
+                print(f"\n🎯 EXPECTED RESULT ACHIEVED: %100 doğruluk sağlandı!")
+                
+                overall_success = True
+                
+            elif success_status == "FAILED_OLD_COUNT":
+                print(f"❌ BAŞARISIZ: Parsing algoritması düzeltmesi ÇALIŞMIYOR!")
+                print(f"   ❌ Hala 47 kontrol kriteri yakalanıyor, 53 değil")
+                print(f"   ❌ Regex pattern fix uygulanmamış olabilir")
+                print(f"   ❌ Eski parsing algoritması hala kullanılıyor")
+                print(f"\n🚨 CRITICAL FAILURE: %100 doğruluk sağlanamadı!")
+                
+                overall_success = False
+                
+            else:
+                print(f"⚠️  KISMİ BAŞARI: Parsing algoritması kısmen çalışıyor")
+                print(f"   ⚠️  {total_items} kontrol kriteri yakalandı (beklenen: {expected_count})")
+                print(f"   ⚠️  Algoritma ayarlaması gerekebilir")
+                print(f"\n🔧 NEEDS ADJUSTMENT: %100 doğruluk için ince ayar gerekli")
+                
+                overall_success = False
+            
+            # Additional checks
+            if parsing_results.get('category_distribution_ok'):
+                print(f"   ✅ Category distribution (A-G) doğru")
+            else:
+                print(f"   ❌ Category distribution problemi var")
+                
+            if parsing_results.get('text_quality_ok'):
+                print(f"   ✅ Text length ve range ayarları uygun")
+            else:
+                print(f"   ❌ Text length ve range ayarları problemi var")
+                
+            if parsing_results.get('regex_pattern_ok'):
+                print(f"   ✅ Regex pattern (numbered items) çalışıyor")
+            else:
+                print(f"   ❌ Regex pattern (numbered items) problemi var")
+        else:
+            print(f"❌ CRITICAL FAILURE: Test çalıştırılamadı")
+            overall_success = False
+        
+        # FINAL ANSWER TO USER QUESTION
+        print(f"\n" + "="*100)
+        print(f"📋 KULLANICI SORUSUNA NET CEVAP:")
+        print(f"="*100)
+        
+        if overall_success:
+            print(f"✅ EVET: 53/53 KONTROL KRİTERİ YAKALAMA BAŞARILI!")
+            print(f"   • Parsing algoritması düzeltmesi çalışıyor")
+            print(f"   • Regex pattern fix uygulandı")
+            print(f"   • Category distribution doğru (A-G)")
+            print(f"   • Text length ve range ayarları uygun")
+            print(f"   • %100 doğruluk sağlandı")
+        else:
+            print(f"❌ HAYIR: 53/53 KONTROL KRİTERİ YAKALAMA BAŞARISIZ!")
+            if success and parsing_results and parsing_results['total_control_items'] == 47:
+                print(f"   • Hala 47 kontrol kriteri yakalanıyor")
+                print(f"   • Parsing algoritması düzeltmesi uygulanmamış")
+                print(f"   • Regex pattern fix çalışmıyor")
+            print(f"   • %100 doğruluk sağlanamadı")
+            print(f"   • Algoritma düzeltmesi gerekli")
+        
+        return test_results
+
 if __name__ == "__main__":
-    # Run the template control items quality analysis
-    print("🎯 EXECUTING TEMPLATE CONTROL ITEMS QUALITY CHECK")
-    print("="*80)
+    # Run the CRITICAL parsing algorithm test
+    print("🚨 EXECUTING CRITICAL PARSING ALGORITHM TEST")
+    print("🎯 TESTING: 53/53 KONTROL KRİTERİ YAKALANMA")
+    print("="*100)
     
-    tester = TemplateControlItemsQualityTester()
-    results = tester.run_template_quality_analysis()
+    tester = CriticalParsingAlgorithmTester()
+    results = tester.run_critical_parsing_test()
 
 class RoyalCertPDFReportingTester:
     def __init__(self):

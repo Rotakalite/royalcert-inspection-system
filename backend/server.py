@@ -1632,6 +1632,84 @@ async def bulk_upload_templates(
         "results": results
     }
 
+# ===================== DATA REPAIR UTILITIES =====================
+
+@app.post("/api/fix/orphaned-inspector-ids")
+async def fix_orphaned_inspector_ids(current_user: User = Depends(get_current_user)):
+    """Fix orphaned inspector IDs in inspections"""
+    
+    # Only admin can run data fixes
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Only admins can run data fixes")
+    
+    try:
+        # Get all active inspectors
+        inspectors = await db.users.find({"role": UserRole.DENETCI, "is_active": True}).to_list(None)
+        valid_inspector_ids = {insp["id"] for insp in inspectors}
+        
+        # Get all beklemede inspections
+        beklemede_inspections = await db.inspections.find({"status": "beklemede"}).to_list(None)
+        
+        fixed_count = 0
+        results = []
+        
+        for inspection in beklemede_inspections:
+            inspector_id = inspection.get("inspector_id")
+            inspection_id = inspection.get("id")
+            equipment_type = inspection.get("equipment_info", {}).get("equipment_type", "N/A")
+            
+            if inspector_id not in valid_inspector_ids:
+                # Orphaned inspector_id found - reassign to first available inspector
+                if inspectors:
+                    new_inspector = inspectors[0]  # Assign to first available inspector
+                    
+                    # Update the inspection
+                    await db.inspections.update_one(
+                        {"id": inspection_id},
+                        {
+                            "$set": {
+                                "inspector_id": new_inspector["id"],
+                                "updated_at": datetime.utcnow()
+                            }
+                        }
+                    )
+                    
+                    results.append({
+                        "inspection_id": inspection_id,
+                        "equipment_type": equipment_type,
+                        "old_inspector_id": inspector_id,
+                        "new_inspector_id": new_inspector["id"],
+                        "new_inspector_name": new_inspector["full_name"],
+                        "action": "reassigned"
+                    })
+                    fixed_count += 1
+                else:
+                    results.append({
+                        "inspection_id": inspection_id,
+                        "equipment_type": equipment_type,
+                        "old_inspector_id": inspector_id,
+                        "action": "no_inspectors_available"
+                    })
+            else:
+                results.append({
+                    "inspection_id": inspection_id,
+                    "equipment_type": equipment_type,
+                    "inspector_id": inspector_id,
+                    "action": "valid_assignment"
+                })
+        
+        return {
+            "message": f"Data repair completed. Fixed {fixed_count} orphaned inspector IDs",
+            "total_inspections_checked": len(beklemede_inspections),
+            "total_inspectors_available": len(inspectors),
+            "fixed_count": fixed_count,
+            "results": results
+        }
+        
+    except Exception as e:
+        print(f"Data fix error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Data fix failed: {str(e)}")
+
 # ===================== HEALTH CHECK =====================
 
 @app.get("/api/health")

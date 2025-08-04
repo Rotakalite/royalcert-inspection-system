@@ -1375,53 +1375,62 @@ def parse_word_document(file_content: bytes, filename: str) -> dict:
                 "has_photo": True      # All items can have photos
             })
         
-        # If no numbered items found, try to extract from tables (FALLBACK - Limited)
+        # FALLBACK: If no numbered items found, try smarter table parsing
         if not control_items and tables:
+            print("DEBUG: No numbered items found, trying smart table parsing...")
             item_id = 1
-            max_items = 50  # Strict limit for table parsing
+            seen_texts = set()
             
             for table in tables:
-                if len(control_items) >= max_items:
-                    break
-                    
                 for row in table:
-                    if len(control_items) >= max_items:
-                        break
-                        
                     for cell_text in row:
-                        if len(control_items) >= max_items:
-                            break
-                            
-                        # More strict filtering for table cells
-                        if (len(cell_text) > 15 and len(cell_text) < 200 and
+                        # Smart table cell filtering for REAL control items
+                        if (len(cell_text) > 20 and len(cell_text) < 300 and  # Reasonable length
                             not any(x in cell_text.upper() for x in ['GENEL', 'BİLGİLER', 'MUAYENE', 'TEST', 'ETİKET', 
-                                                                     'KONTROL', 'FORM', 'RAPOR', 'TABLE', 'BAŞLIK']) and
+                                                                     'KONTROL', 'FORM', 'RAPOR', 'TABLE', 'BAŞLIK',
+                                                                     'NO', 'ADI', 'KODU', 'DURUM', 'TARİH']) and
                             not cell_text.upper().strip() in ['D', 'U', 'UD', 'U.Y'] and
-                            cell_text.count('.') < 3):  # Avoid dotted patterns
+                            cell_text.count('.') < 5 and  # Avoid dotted number sequences
+                            len(re.sub(r'[^a-zA-ZğüşıöçĞÜŞİÖÇ]', '', cell_text)) > 15):  # Has enough letters
                             
-                            # Determine category - better distribution
-                            if item_id <= 8:
-                                current_category = 'A'
-                            elif item_id <= 16:
-                                current_category = 'B'
-                            elif item_id <= 24:
-                                current_category = 'C'
-                            elif item_id <= 32:
-                                current_category = 'D'
-                            elif item_id <= 40:
-                                current_category = 'E'
-                            else:
-                                current_category = 'F'  # Limit to 6 categories for table parsing
-                            
-                            control_items.append({
-                                "id": item_id,
-                                "text": cell_text.strip(),
-                                "category": current_category,
-                                "has_dropdown": True,
-                                "has_comment": True,
-                                "has_photo": True
-                            })
-                            item_id += 1
+                            # Check for duplicates
+                            text_key = re.sub(r'\s+', ' ', cell_text.lower().strip())
+                            if text_key not in seen_texts:
+                                seen_texts.add(text_key)
+                                
+                                # Smart category assignment
+                                if item_id <= 12:
+                                    current_category = 'A'
+                                elif item_id <= 20:
+                                    current_category = 'B'
+                                elif item_id <= 27:
+                                    current_category = 'C'
+                                elif item_id <= 35:
+                                    current_category = 'D'
+                                elif item_id <= 42:
+                                    current_category = 'E'
+                                elif item_id <= 48:
+                                    current_category = 'F'
+                                elif item_id <= 55:
+                                    current_category = 'G'
+                                else:
+                                    current_category = 'H'
+                                
+                                control_items.append({
+                                    "id": item_id,
+                                    "text": cell_text.strip(),
+                                    "category": current_category,
+                                    "has_dropdown": True,
+                                    "has_comment": True,
+                                    "has_photo": True
+                                })
+                                item_id += 1
+                                
+                                # Reasonable limit - but not too restrictive
+                                if item_id > 80:  # Allow up to 80 for complex equipment
+                                    break
+            
+            print(f"DEBUG: Table parsing found {len(control_items)} control items")
         
         # Group control items by category
         categories_dict = {}

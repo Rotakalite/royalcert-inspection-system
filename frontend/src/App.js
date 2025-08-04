@@ -869,7 +869,7 @@ const CustomerManagement = ({ onBack }) => {
   };
 
   const handleDelete = async (customerId) => {
-    if (!confirm('Bu müşteriyi silmek istediğinizden emin misiniz?')) return;
+    if (!window.confirm('Bu müşteriyi silmek istediğinizden emin misiniz?')) return;
     
     try {
       await api.delete(`/customers/${customerId}`);

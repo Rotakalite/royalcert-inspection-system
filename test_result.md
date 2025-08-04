@@ -227,8 +227,9 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Bulk Import Modal Component"
-  stuck_tasks: []
+    - "Template Upload System - Word Document Parsing"
+  stuck_tasks:
+    - "Template Upload System - Word Document Parsing"
   test_all: false
   test_priority: "high_first"
 

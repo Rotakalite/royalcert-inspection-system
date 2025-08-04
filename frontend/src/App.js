@@ -610,7 +610,7 @@ const AdminDashboard = () => {
     });
     
     if (validFiles.length !== files.length) {
-      alert('Sadece Word dosyaları (.docx, .doc) desteklenmektedir!');
+      alert('Word dosyaları (.docx, .doc) ve PDF dosyaları (.pdf) desteklenmektedir!');
     }
     
     setSelectedFiles(validFiles);

@@ -1510,6 +1510,7 @@ async def bulk_upload_templates(
                 "filename": file.filename,
                 "template_name": template_data["name"],
                 "equipment_type": template_data["equipment_type"],
+                "template_type": template_data["template_type"],
                 "total_items": template_data["total_items"]
             })
             

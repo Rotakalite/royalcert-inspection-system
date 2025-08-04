@@ -518,9 +518,418 @@ const AdminDashboard = () => {
   );
 };
 
-const PlanlamaDashboard = () => {
-  const [stats, setStats] = useState({});
+const CustomerManagement = ({ onBack }) => {
   const [customers, setCustomers] = useState([]);
+  const [equipmentTemplates, setEquipmentTemplates] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [formData, setFormData] = useState({
+    company_name: '',
+    contact_person: '',
+    phone: '',
+    email: '',
+    address: '',
+    equipments: []
+  });
+
+  useEffect(() => {
+    fetchCustomers();
+    fetchEquipmentTemplates();
+  }, []);
+
+  const fetchCustomers = async () => {
+    try {
+      const response = await api.get('/customers');
+      setCustomers(response.data);
+      setLoading(false);
+    } catch (error) {
+      console.error('Customers error:', error);
+      setLoading(false);
+    }
+  };
+
+  const fetchEquipmentTemplates = async () => {
+    try {
+      const response = await api.get('/equipment-templates');
+      setEquipmentTemplates(response.data);
+    } catch (error) {
+      console.error('Templates error:', error);
+    }
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleEquipmentChange = (templateId, isChecked) => {
+    const template = equipmentTemplates.find(t => t.id === templateId);
+    if (!template) return;
+
+    setFormData(prev => ({
+      ...prev,
+      equipments: isChecked 
+        ? [...prev.equipments, {
+            template_id: templateId,
+            equipment_type: template.equipment_type,
+            description: template.description,
+            serial_number: '',
+            capacity: '',
+            manufacturing_year: ''
+          }]
+        : prev.equipments.filter(eq => eq.template_id !== templateId)
+    }));
+  };
+
+  const handleEquipmentDetailChange = (templateId, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      equipments: prev.equipments.map(eq => 
+        eq.template_id === templateId 
+          ? { ...eq, [field]: value }
+          : eq
+      )
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingCustomer) {
+        await api.put(`/customers/${editingCustomer.id}`, formData);
+      } else {
+        await api.post('/customers', formData);
+      }
+      
+      setShowForm(false);
+      setEditingCustomer(null);
+      setFormData({
+        company_name: '',
+        contact_person: '',
+        phone: '',
+        email: '',
+        address: '',
+        equipments: []
+      });
+      fetchCustomers();
+    } catch (error) {
+      console.error('Save error:', error);
+      alert('Kaydetme hatası: ' + (error.response?.data?.detail || 'Bilinmeyen hata'));
+    }
+  };
+
+  const handleEdit = (customer) => {
+    setEditingCustomer(customer);
+    setFormData({
+      company_name: customer.company_name,
+      contact_person: customer.contact_person,
+      phone: customer.phone,
+      email: customer.email,
+      address: customer.address,
+      equipments: customer.equipments || []
+    });
+    setShowForm(true);
+  };
+
+  const handleDelete = async (customerId) => {
+    if (!confirm('Bu müşteriyi silmek istediğinizden emin misiniz?')) return;
+    
+    try {
+      await api.delete(`/customers/${customerId}`);
+      fetchCustomers();
+    } catch (error) {
+      console.error('Delete error:', error);
+      alert('Silme hatası: ' + (error.response?.data?.detail || 'Bilinmeyen hata'));
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <img 
+            src="https://customer-assets.emergentagent.com/job_yeni-yazilim/artifacts/7675i2kn_WhatsApp%20G%C3%B6rsel%202025-08-04%20saat%2012.57.00_7b510c6c.jpg"
+            alt="RoyalCert Logo"
+            className="w-16 h-16 object-contain mx-auto mb-4"
+          />
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-900 mx-auto mb-4"></div>
+          <p className="text-royal-600">Müşteriler yükleniyor...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Customer Form
+  if (showForm) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900">
+            {editingCustomer ? 'Müşteri Düzenle' : 'Yeni Müşteri Ekle'}
+          </h1>
+          <button
+            onClick={() => {
+              setShowForm(false);
+              setEditingCustomer(null);
+            }}
+            className="px-4 py-2 text-gray-600 hover:text-gray-800"
+          >
+            ← Geri Dön
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Customer Basic Info */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Müşteri Bilgileri</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Firma Adı *
+                </label>
+                <input
+                  type="text"
+                  value={formData.company_name}
+                  onChange={(e) => handleInputChange('company_name', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-900 focus:border-transparent"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  İletişim Kişisi *
+                </label>
+                <input
+                  type="text"
+                  value={formData.contact_person}
+                  onChange={(e) => handleInputChange('contact_person', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-900 focus:border-transparent"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Telefon *
+                </label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => handleInputChange('phone', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-900 focus:border-transparent"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  E-posta *
+                </label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-900 focus:border-transparent"
+                  required
+                />
+              </div>
+            </div>
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Adres *
+              </label>
+              <textarea
+                value={formData.address}
+                onChange={(e) => handleInputChange('address', e.target.value)}
+                rows="2"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-900 focus:border-transparent"
+                required
+              />
+            </div>
+          </div>
+
+          {/* Equipment Selection */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Ekipman Seçimi</h2>
+            <div className="space-y-4">
+              {equipmentTemplates.map((template) => {
+                const isSelected = formData.equipments.some(eq => eq.template_id === template.id);
+                const selectedEquipment = formData.equipments.find(eq => eq.template_id === template.id);
+                
+                return (
+                  <div key={template.id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center mb-3">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => handleEquipmentChange(template.id, e.target.checked)}
+                        className="mr-3"
+                      />
+                      <div>
+                        <h3 className="font-medium text-gray-900">{template.equipment_type}</h3>
+                        <p className="text-sm text-gray-500">{template.description}</p>
+                      </div>
+                    </div>
+                    
+                    {isSelected && (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 ml-6 pt-3 border-t border-gray-100">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Seri Numarası
+                          </label>
+                          <input
+                            type="text"
+                            value={selectedEquipment?.serial_number || ''}
+                            onChange={(e) => handleEquipmentDetailChange(template.id, 'serial_number', e.target.value)}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-red-900"
+                            placeholder="Seri numarası"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Kapasite
+                          </label>
+                          <input
+                            type="text"
+                            value={selectedEquipment?.capacity || ''}
+                            onChange={(e) => handleEquipmentDetailChange(template.id, 'capacity', e.target.value)}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-red-900"
+                            placeholder="Kapasite"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            İmalat Yılı
+                          </label>
+                          <input
+                            type="text"
+                            value={selectedEquipment?.manufacturing_year || ''}
+                            onChange={(e) => handleEquipmentDetailChange(template.id, 'manufacturing_year', e.target.value)}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-red-900"
+                            placeholder="İmalat yılı"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Submit Button */}
+          <div className="flex justify-end space-x-4">
+            <button
+              type="button"
+              onClick={() => {
+                setShowForm(false);
+                setEditingCustomer(null);
+              }}
+              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+            >
+              İptal
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2 bg-red-900 text-white rounded-md hover:bg-red-800"
+            >
+              {editingCustomer ? 'Güncelle' : 'Müşteri Ekle'}
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  // Customer List
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">Müşteri Yönetimi</h1>
+        <div className="space-x-3">
+          <button
+            onClick={() => setShowForm(true)}
+            className="px-4 py-2 bg-red-900 text-white rounded-md hover:bg-red-800"
+          >
+            Yeni Müşteri Ekle
+          </button>
+          <button
+            onClick={onBack}
+            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+          >
+            Dashboard'a Dön
+          </button>
+        </div>
+      </div>
+
+      {/* Customers Table */}
+      <div className="bg-white rounded-xl shadow-sm">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Müşteriler ({customers.length})
+          </h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Firma</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">İletişim Kişisi</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefon</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ekipman Sayısı</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kayıt Tarihi</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">İşlemler</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {customers.map((customer) => (
+                <tr key={customer.id}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">{customer.company_name}</div>
+                    <div className="text-sm text-gray-500">{customer.email}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {customer.contact_person}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {customer.phone}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {customer.equipments?.length || 0} ekipman
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {new Date(customer.created_at).toLocaleDateString('tr-TR')}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                    <button
+                      onClick={() => handleEdit(customer)}
+                      className="text-indigo-600 hover:text-indigo-900"
+                    >
+                      Düzenle
+                    </button>
+                    <button
+                      onClick={() => handleDelete(customer.id)}
+                      className="text-red-600 hover:text-red-900"
+                    >
+                      Sil
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {customers.length === 0 && (
+          <div className="text-center py-12">
+            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+            </svg>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">Henüz müşteri yok</h3>
+            <p className="mt-1 text-sm text-gray-500">İlk müşteriyi eklemek için yukarıdaki butonu kullanın.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
   useEffect(() => {
     fetchStats();

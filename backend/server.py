@@ -1596,10 +1596,11 @@ async def bulk_upload_templates(
             template_data["created_at"] = datetime.utcnow()
             template_data["updated_at"] = datetime.utcnow()
             
-            # Check if template already exists
+            # Check if template already exists (only active templates)
             existing_template = await db.equipment_templates.find_one({
                 "equipment_type": template_data["equipment_type"],
-                "template_type": template_data["template_type"]
+                "template_type": template_data["template_type"],
+                "is_active": True
             })
             
             if existing_template:

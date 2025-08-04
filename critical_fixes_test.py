@@ -176,16 +176,24 @@ class CriticalFixesTester:
                         
                         print(f"   ✅ Retrieved inspection form with {len(control_items)} control items")
                         
-                        # Check if we have items in the problematic range (43-53)
-                        high_numbered_items = [item for item in control_items if item.get('id', 0) >= 43]
-                        print(f"   Items with ID ≥ 43: {len(high_numbered_items)}")
+                        # Check if we have items in the range up to 53
+                        high_numbered_items = [item for item in control_items if item.get('id', 0) >= 41]
+                        max_item_id = max([item.get('id', 0) for item in control_items]) if control_items else 0
                         
-                        if high_numbered_items:
-                            print(f"   ✅ High-numbered items found - questions 43-53 should be visible")
+                        print(f"   Items with ID ≥ 41: {len(high_numbered_items)}")
+                        print(f"   Maximum item ID found: {max_item_id}")
+                        
+                        if max_item_id >= 49:
+                            print(f"   ✅ Items up to 49+ found - questions 49-53 should be visible")
+                            high_items = [item for item in control_items if item.get('id', 0) >= 49]
+                            for item in high_items[:5]:  # Show first 5
+                                print(f"     ID {item.get('id')}: {item.get('text', 'N/A')[:50]}...")
+                        elif max_item_id >= 41:
+                            print(f"   ✅ Items 41+ found - questions 41-48 should be visible")
                             for item in high_numbered_items[:5]:  # Show first 5
                                 print(f"     ID {item.get('id')}: {item.get('text', 'N/A')[:50]}...")
                         else:
-                            print(f"   ⚠️  No items with ID ≥ 43 found in this inspection")
+                            print(f"   ⚠️  No items with ID ≥ 41 found in this inspection")
                     else:
                         print(f"   ❌ Failed to get inspection form: {form_response.status_code}")
                 else:

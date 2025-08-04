@@ -12,8 +12,8 @@ import io
 import os
 from datetime import datetime
 
-# Configuration
-BACKEND_URL = "https://405a5b7a-3c02-4793-9fcc-5203d2944620.preview.emergentagent.com/api"
+# Configuration - PRODUCTION BACKEND
+BACKEND_URL = "https://royalcert-inspection-system-production.up.railway.app/api"
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "admin123"
 

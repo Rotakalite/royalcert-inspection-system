@@ -518,6 +518,242 @@ const AdminDashboard = () => {
   );
 };
 
+// Bulk Import Modal Component
+const BulkImportModal = ({ onClose, onSuccess }) => {
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [importResult, setImportResult] = useState(null);
+  const [showResults, setShowResults] = useState(false);
+
+  const handleFileSelect = (e) => {
+    const selectedFile = e.target.files[0];
+    if (selectedFile) {
+      const fileType = selectedFile.name.toLowerCase();
+      if (fileType.endsWith('.xlsx') || fileType.endsWith('.xls') || fileType.endsWith('.csv')) {
+        setFile(selectedFile);
+        setImportResult(null);
+        setShowResults(false);
+      } else {
+        alert('Sadece Excel (.xlsx, .xls) veya CSV dosyaları kabul edilir');
+      }
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!file) {
+      alert('Lütfen bir dosya seçin');
+      return;
+    }
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await api.post('/customers/bulk-import', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      setImportResult(response.data);
+      setShowResults(true);
+      
+      if (response.data.successful_imports > 0) {
+        onSuccess();
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Yükleme hatası: ' + (error.response?.data?.detail || 'Bilinmeyen hata'));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const downloadTemplate = async () => {
+    try {
+      const response = await api.get('/customers/bulk-import/template');
+      
+      // Convert hex string back to binary
+      const hexString = response.data.content;
+      const bytes = new Uint8Array(hexString.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+      
+      // Create blob and download
+      const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'musteri_listesi_template.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+    } catch (error) {
+      console.error('Template download error:', error);
+      alert('Template indirme hatası: ' + (error.response?.data?.detail || 'Bilinmeyen hata'));
+    }
+  };
+
+  const resetForm = () => {
+    setFile(null);
+    setImportResult(null);
+    setShowResults(false);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto m-4">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold text-gray-900">Toplu Müşteri İçe Aktarımı</h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div className="p-6">
+          {!showResults ? (
+            <div className="space-y-6">
+              {/* Instructions */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="font-medium text-blue-900 mb-2">Kullanım Talimatları:</h3>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li>• Excel dosyasında 12 sütun bulunmalıdır</li>
+                  <li>• Sütun sırası: Muayene Alanı, Muayene Alt Alanı, Muayene Türü, Referans, Muayene Tarihi, Zorunlu/Gönüllü Alan, Müşteri Adı, Müşteri Adresi, Denetçi Adı, Denetçi Lokasyonu, Rapor Onay Tarihi, Rapor Onaylayan</li>
+                  <li>• Müşteri Adı ve Müşteri Adresi zorunludur</li>
+                  <li>• Boş alanlar "-" işareti ile belirtilebilir</li>
+                  <li>• Mevcut müşteriler güncellenecek, yenileri eklenecek</li>
+                </ul>
+              </div>
+
+              {/* Template Download */}
+              <div className="text-center">
+                <p className="text-gray-600 mb-4">Önce template dosyasını indirip örnek formatı inceleyin:</p>
+                <button
+                  onClick={downloadTemplate}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                >
+                  📥 Template İndir
+                </button>
+              </div>
+
+              <div className="border-t border-gray-200 pt-6">
+                {/* File Upload */}
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Excel Dosyası Seçin (.xlsx, .xls, .csv)
+                    </label>
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      onChange={handleFileSelect}
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-red-50 file:text-red-700 hover:file:bg-red-100"
+                    />
+                  </div>
+
+                  {file && (
+                    <div className="text-sm text-gray-600">
+                      Seçilen dosya: <span className="font-medium">{file.name}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Upload Button */}
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                >
+                  İptal
+                </button>
+                <button
+                  onClick={handleUpload}
+                  disabled={!file || uploading}
+                  className="px-6 py-2 bg-red-900 text-white rounded-md hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {uploading ? 'Yükleniyor...' : 'Dosyayı Yükle'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Results Display */
+            <div className="space-y-6">
+              <div className="text-center">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">İçe Aktarım Sonuçları</h3>
+                
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">{importResult.total_rows}</div>
+                    <div className="text-sm text-blue-800">Toplam Satır</div>
+                  </div>
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">{importResult.successful_imports}</div>
+                    <div className="text-sm text-green-800">Başarılı</div>
+                  </div>
+                  <div className="bg-red-50 p-4 rounded-lg">
+                    <div className="text-2xl font-bold text-red-600">{importResult.failed_imports}</div>
+                    <div className="text-sm text-red-800">Başarısız</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Warnings */}
+              {importResult.warnings && importResult.warnings.length > 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <h4 className="font-medium text-yellow-900 mb-2">Uyarılar:</h4>
+                  <ul className="text-sm text-yellow-800 space-y-1">
+                    {importResult.warnings.map((warning, index) => (
+                      <li key={index}>• {warning}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Errors */}
+              {importResult.errors && importResult.errors.length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <h4 className="font-medium text-red-900 mb-2">Hatalar:</h4>
+                  <div className="text-sm text-red-800 space-y-2 max-h-40 overflow-y-auto">
+                    {importResult.errors.map((error, index) => (
+                      <div key={index} className="border-b border-red-200 pb-2 last:border-b-0">
+                        <strong>Satır {error.row}:</strong> {error.error}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={resetForm}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                >
+                  Yeni Import
+                </button>
+                <button
+                  onClick={onClose}
+                  className="px-6 py-2 bg-red-900 text-white rounded-md hover:bg-red-800"
+                >
+                  Kapat
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const CustomerManagement = ({ onBack }) => {
   const [customers, setCustomers] = useState([]);
   const [equipmentTemplates, setEquipmentTemplates] = useState([]);

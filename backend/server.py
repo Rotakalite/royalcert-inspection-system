@@ -116,7 +116,9 @@ class EquipmentCategory(BaseModel):
 
 class EquipmentTemplate(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: Optional[str] = None
     equipment_type: str
+    template_type: Optional[str] = None  # FORM or REPORT
     description: str
     categories: List[EquipmentCategory]
     created_by: str

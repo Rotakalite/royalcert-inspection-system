@@ -150,6 +150,23 @@ class EquipmentTemplateCreate(BaseModel):
     template_type: Optional[str] = None  # FORM or REPORT
     description: str
     categories: List[EquipmentCategory]
+    
+    # Universal Template Structure Fields
+    general_info: Optional[Dict[str, Any]] = None
+    measurement_devices: Optional[List[Dict[str, Any]]] = None
+    equipment_info: Optional[Dict[str, Any]] = None
+    test_values: Optional[Dict[str, Any]] = None
+    control_items: Optional[List[Dict[str, Any]]] = None
+    categories_dict: Optional[Dict[str, Any]] = None
+    test_experiments: Optional[List[Dict[str, Any]]] = None
+    defect_explanations: Optional[str] = None
+    notes: Optional[str] = None
+    result_opinion: Optional[str] = None
+    inspector_info: Optional[Dict[str, Any]] = None
+    company_official: Optional[Dict[str, Any]] = None
+    
+    # Backward compatibility field
+    total_items: Optional[int] = None
 
 class Inspection(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))

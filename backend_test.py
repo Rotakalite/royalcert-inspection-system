@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Backend API Testing for RoyalCert Bulk Import System
-Tests the bulk customer import functionality and template download
+Backend API Testing for RoyalCert PDF Reporting System
+Tests the existing backend infrastructure for PDF reporting implementation
+Focus: Understanding data structures and endpoints for PDF generation
 """
 
 import requests

@@ -701,7 +701,12 @@ const Layout = ({ children }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
+              <div className="flex-shrink-0 flex items-center">
+                <img 
+                  src="https://customer-assets.emergentagent.com/job_yeni-yazilim/artifacts/7675i2kn_WhatsApp%20G%C3%B6rsel%202025-08-04%20saat%2012.57.00_7b510c6c.jpg"
+                  alt="RoyalCert Logo"
+                  className="h-8 w-8 object-contain mr-3"
+                />
                 <h1 className="text-xl font-bold text-red-900">RoyalCert</h1>
               </div>
             </div>

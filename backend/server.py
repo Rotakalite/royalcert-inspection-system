@@ -122,6 +122,14 @@ class InspectionCreate(BaseModel):
     inspector_id: str
     planned_date: datetime
 
+class InspectionUpdate(BaseModel):
+    status: Optional[str] = None
+    report_data: Optional[Dict[str, Any]] = None
+
+class InspectionApproval(BaseModel):
+    action: str  # "approve" or "reject"
+    notes: Optional[str] = None
+
 # ===================== AUTH FUNCTIONS =====================
 
 def verify_password(plain_password, hashed_password):

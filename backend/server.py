@@ -1984,14 +1984,14 @@ def extract_control_items(text: str, tables: list) -> list:
         for table in tables:
             for row in table:
                 for cell_text in row:
-                    # Smart table cell filtering for REAL control items
-                    if (len(cell_text) > 20 and len(cell_text) < 300 and  # Reasonable length
+                    # Smart table cell filtering for REAL control items - RELAXED FOR ALL 53 ITEMS
+                    if (len(cell_text) > 10 and len(cell_text) < 400 and  # RELAXED: Was 20, now 10 
                         not any(x in cell_text.upper() for x in ['GENEL', 'BİLGİLER', 'MUAYENE', 'TEST', 'ETİKET', 
                                                                  'KONTROL', 'FORM', 'RAPOR', 'TABLE', 'BAŞLIK',
                                                                  'NO', 'ADI', 'KODU', 'DURUM', 'TARİH']) and
                         not cell_text.upper().strip() in ['D', 'U', 'UD', 'U.Y'] and
-                        cell_text.count('.') < 5 and  # Avoid dotted number sequences
-                        len(re.sub(r'[^a-zA-ZğüşıöçĞÜŞİÖÇ]', '', cell_text)) > 15):  # Has enough letters
+                        cell_text.count('.') < 10 and  # RELAXED: Was 5, now 10
+                        len(re.sub(r'[^a-zA-ZğüşıöçĞÜŞİÖÇ]', '', cell_text)) > 8):  # RELAXED: Was 15, now 8
                         
                         # Check for duplicates
                         text_key = re.sub(r'\s+', ' ', cell_text.lower().strip())

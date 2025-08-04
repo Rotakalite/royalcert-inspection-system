@@ -1939,11 +1939,12 @@ async def upload_template_document(
         
         # Choose parser based on file type
         if file.filename.endswith('.pdf'):
-            print("DEBUG: Using PDF parser")
+            # For now, use ChatGPT-style Word parser (can extend to PDF later)
+            print("DEBUG: PDF detected, but using Word parser temporarily")
             template_data = extract_template_fields_from_word(file_content, file.filename)
         else:
-            print("DEBUG: Using Word parser")
-            template_data = parse_word_document(file_content, file.filename)
+            print("DEBUG: Using ChatGPT-style Word parser")
+            template_data = extract_template_fields_from_word(file_content, file.filename)
         
         # DEBUG: Check what fields are in template_data
         print(f"DEBUG: template_data keys: {list(template_data.keys())}")

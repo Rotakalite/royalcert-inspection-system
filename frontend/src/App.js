@@ -3214,6 +3214,22 @@ const DenetciDashboard = () => {
     }
   };
 
+  const openInspectionForm = (inspection) => {
+    setSelectedInspection(inspection);
+    setShowForm(true);
+  };
+
+  const handleStatusUpdate = async (inspectionId, newStatus) => {
+    try {
+      await api.put(`/inspections/${inspectionId}`, { status: newStatus });
+      fetchInspections();
+      alert('Denetim durumu güncellendi');
+    } catch (error) {
+      console.error('Status update error:', error);
+      alert('Durum güncelleme hatası: ' + (error.response?.data?.detail || 'Bilinmeyen hata'));
+    }
+  };
+
   const handleStatusUpdate = async (inspectionId, newStatus) => {
     try {
       await api.put(`/inspections/${inspectionId}`, { status: newStatus });

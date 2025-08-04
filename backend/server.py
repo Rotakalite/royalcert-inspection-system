@@ -1719,17 +1719,22 @@ async def bulk_upload_templates(
     
     for file in files:
         try:
-            # Validate file type
-            if not file.filename.endswith(('.docx', '.doc')):
+            # Validate file type - NOW SUPPORTS PDF!
+            if not file.filename.endswith(('.docx', '.doc', '.pdf')):
                 results["failed"].append({
                     "filename": file.filename,
-                    "error": "Only Word documents (.docx, .doc) are supported"
+                    "error": "Only Word documents (.docx, .doc) and PDF files (.pdf) are supported"
                 })
                 continue
             
             # Read and parse file
             file_content = await file.read()
-            template_data = parse_word_document(file_content, file.filename)
+            
+            # Choose parser based on file type
+            if file.filename.endswith('.pdf'):
+                template_data = parse_pdf_document(file_content, file.filename)
+            else:
+                template_data = parse_word_document(file_content, file.filename)
             
             # Add metadata
             template_data["id"] = str(uuid.uuid4())

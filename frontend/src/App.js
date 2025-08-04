@@ -619,6 +619,7 @@ const AppContent = () => {
       {user.role === 'admin' && <AdminDashboard />}
       {user.role === 'planlama_uzmani' && <PlanlamaDashboard />}
       {user.role === 'denetci' && <DenetciDashboard />}
+      {user.role === 'teknik_yonetici' && <TeknisyenDashboard />}
     </Layout>
   );
 };

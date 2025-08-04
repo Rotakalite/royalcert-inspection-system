@@ -14,7 +14,10 @@ import pandas as pd
 import io
 from docx import Document
 from docx.shared import Inches
+import pdfplumber
+import PyPDF2
 import re
+import io
 from dotenv import load_dotenv
 
 # Load environment variables

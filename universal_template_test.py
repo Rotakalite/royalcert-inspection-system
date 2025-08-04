@@ -457,12 +457,13 @@ class UniversalTemplateParserTester:
         for doc_name in TEST_DOCUMENTS.keys():
             print(f"\n   {doc_name}:")
             
-            # Universal fields
-            if doc_name in universal_field_results:
-                universal_data = universal_field_results[doc_name]
+            # Universal fields from database storage (not upload response)
+            if doc_name in database_storage_results:
+                storage_data = database_storage_results[doc_name]
+                universal_data = storage_data.get('universal_fields', {})
                 present_count = universal_data.get('present_count', 0)
                 total_expected = universal_data.get('total_expected', 11)
-                print(f"     Universal fields: {present_count}/{total_expected}")
+                print(f"     Universal fields (DB): {present_count}/{total_expected}")
             
             # Control items
             if doc_name in control_items_results:

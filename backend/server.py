@@ -1418,15 +1418,16 @@ async def upload_template_document(
         template_data["created_at"] = datetime.utcnow()
         template_data["updated_at"] = datetime.utcnow()
         
-        # Check if template with same name already exists
+        # Check if template with same equipment_type and template_type already exists
         existing_template = await db.equipment_templates.find_one({
-            "name": template_data["name"]
+            "equipment_type": template_data["equipment_type"],
+            "template_type": template_data["template_type"]
         })
         
         if existing_template:
             raise HTTPException(
                 status_code=400, 
-                detail=f"Template with name '{template_data['name']}' already exists"
+                detail=f"{template_data['equipment_type']} {template_data['template_type']} template already exists"
             )
         
         # Insert template into database

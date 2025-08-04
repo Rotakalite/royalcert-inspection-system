@@ -6,9 +6,9 @@ import './App.css';
 const AuthContext = createContext(null);
 
 // API Configuration
-const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+const API_BASE_URL = process.env.REACT_APP_ROYALCERT_API_URL || 'http://localhost:8001/api';
 const api = axios.create({
-  baseURL: `${API_BASE_URL}/api`,
+  baseURL: API_BASE_URL,
 });
 
 // Token interceptor

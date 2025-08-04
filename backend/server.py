@@ -1291,6 +1291,228 @@ async def startup_event():
 
 # ===================== TEMPLATE UPLOAD & WORD PARSING =====================
 
+def extract_template_fields_from_word(file_content: bytes, filename: str) -> dict:
+    """Extract template fields from Word document - ChatGPT approach!"""
+    
+    print(f"DEBUG: Extracting template fields from {filename}")
+    
+    # Save temporary file
+    temp_path = f"/tmp/{uuid.uuid4()}.docx"
+    with open(temp_path, 'wb') as f:
+        f.write(file_content)
+    
+    try:
+        doc = Document(temp_path)
+        template_fields = {}
+        control_items = []
+        
+        # 1. Find placeholder fields - ChatGPT style!
+        placeholder_patterns = [
+            r'\{\{([^}]+)\}\}',  # {{field_name}}
+            r'__{3,}',           # ______ (3 or more underscores)
+            r'\[([^\]]+)\]',     # [field_name]
+            r'\$\{([^}]+)\}',    # ${field_name}
+        ]
+        
+        field_counter = 1
+        found_fields = set()
+        
+        # Extract from paragraphs
+        for paragraph in doc.paragraphs:
+            text = paragraph.text.strip()
+            if not text:
+                continue
+                
+            # Check for placeholders
+            for pattern in placeholder_patterns:
+                matches = re.findall(pattern, text)
+                for match in matches:
+                    if isinstance(match, tuple):
+                        field_name = match[0].strip()
+                    else:
+                        field_name = f"field_{field_counter}"
+                        field_counter += 1
+                    
+                    if field_name and field_name not in found_fields:
+                        found_fields.add(field_name)
+                        
+                        # Determine field type from name
+                        field_type = "text"
+                        if any(word in field_name.lower() for word in ["tarih", "date"]):
+                            field_type = "date"
+                        elif any(word in field_name.lower() for word in ["email", "eposta"]):
+                            field_type = "email"
+                        elif any(word in field_name.lower() for word in ["telefon", "phone"]):
+                            field_type = "tel"
+                        elif any(word in field_name.lower() for word in ["sayi", "number", "adet"]):
+                            field_type = "number"
+                        
+                        template_fields[field_name] = {
+                            "label": field_name.replace("_", " ").title(),
+                            "type": field_type,
+                            "required": True,
+                            "original_text": text
+                        }
+            
+            # Check if it's a numbered control item
+            numbered_match = re.match(r'^(\d+)[.\)]?\s*(.+)', text)
+            if numbered_match:
+                item_num = int(numbered_match.group(1))
+                item_text = numbered_match.group(2).strip()
+                
+                if len(item_text) > 10 and item_num <= 100:  # Reasonable control item
+                    # Determine category
+                    if item_num <= 10:
+                        category = 'A'
+                    elif item_num <= 20:
+                        category = 'B'
+                    elif item_num <= 30:
+                        category = 'C'
+                    elif item_num <= 40:
+                        category = 'D'
+                    elif item_num <= 50:
+                        category = 'E'
+                    elif item_num <= 60:
+                        category = 'F'
+                    else:
+                        category = 'G'
+                    
+                    control_items.append({
+                        "id": item_num,
+                        "text": item_text,
+                        "category": category,
+                        "input_type": "dropdown",
+                        "has_comment": True,
+                        "has_photo": True,
+                        "required": True
+                    })
+        
+        # Extract from tables
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    cell_text = cell.text.strip()
+                    if not cell_text:
+                        continue
+                    
+                    # Check for placeholders in tables
+                    for pattern in placeholder_patterns:
+                        matches = re.findall(pattern, cell_text)
+                        for match in matches:
+                            if isinstance(match, tuple):
+                                field_name = match[0].strip()
+                            else:
+                                field_name = f"table_field_{field_counter}"
+                                field_counter += 1
+                            
+                            if field_name and field_name not in found_fields:
+                                found_fields.add(field_name)
+                                template_fields[field_name] = {
+                                    "label": field_name.replace("_", " ").title(), 
+                                    "type": "text",
+                                    "required": True,
+                                    "original_text": cell_text,
+                                    "location": "table"
+                                }
+        
+        # Equipment type detection
+        filename_upper = filename.upper()
+        equipment_type = "UNKNOWN"
+        
+        equipment_keywords = {
+            "FORKLIFT": ["FORKLIFT", "FORK", "LİFT"],
+            "CARASKAL": ["CARASKAL", "CARAS", "ASKAL"],
+            "ISKELE": ["ISKELE", "İSKELE", "SCAFF"],  
+            "VINC": ["VINC", "VİNÇ", "CRANE", "KRİK"],
+            "ASANSÖR": ["ASANSÖR", "ASANSOR", "ELEVATöR", "LIFT"],
+            "YANGIN_SÖNDÜRME": ["YANGIN", "SÖNDÜRME", "FIRE", "SPRINKLER", "SULU"],
+            "KAZAN": ["KAZAN", "BOILER", "BUHAR"],
+            "TANK": ["TANK", "DEPO", "REZERVUAR"],
+            "BASINCLI_KABI": ["BASINCLI", "KABI", "PRESSURE", "VESSEL"]
+        }
+        
+        for eq_type, keywords in equipment_keywords.items():
+            if any(keyword in filename_upper for keyword in keywords):
+                equipment_type = eq_type
+                break
+        
+        # Template type
+        template_type = "REPORT" if any(word in filename_upper for word in ["RAPOR", "REPORT"]) else "FORM"
+        template_name = f"{equipment_type} MUAYENE {'RAPORU' if template_type == 'REPORT' else 'FORMU'}"
+        
+        # Group control items by category
+        categories_dict = {}
+        for item in control_items:
+            category = item["category"]
+            if category not in categories_dict:
+                categories_dict[category] = {
+                    "name": category,
+                    "items": []
+                }
+            categories_dict[category]["items"].append(item)
+        
+        # Create categories list
+        categories_list = []
+        for category_code in sorted(categories_dict.keys()):
+            categories_list.append({
+                "code": category_code,
+                "name": category_code,
+                "items": categories_dict[category_code]["items"]
+            })
+        
+        # Build template data - ChatGPT style!
+        template_data = {
+            "name": template_name,
+            "equipment_type": equipment_type,
+            "template_type": template_type,
+            "description": f"{equipment_type} template - {len(found_fields)} alanı ve {len(control_items)} kontrol kriteri",
+            "parsed_from": "WORD_CHATGPT_STYLE",
+            "parse_date": datetime.utcnow().isoformat(),
+            "is_active": True,
+            "total_items": len(control_items),
+            "total_fields": len(found_fields),
+            
+            # Template fields - ChatGPT approach
+            "template_fields": template_fields,
+            
+            # Control items
+            "control_items": control_items,
+            "categories": categories_list,
+            "categories_dict": categories_dict,
+            
+            # Universal structure
+            "general_info": template_fields,  # Use extracted fields
+            "measurement_devices": [],
+            "equipment_info": {},
+            "test_values": {},
+            "test_experiments": [],
+            "defect_explanations": "Tespit edilen kusurlar",
+            "notes": "Notlar",
+            "result_opinion": "Sonuç ve kanaat",
+            "inspector_info": {
+                "name": {"label": "Muayene Personeli", "required": True},
+                "signature": {"label": "İmza", "required": True, "type": "signature"}
+            },
+            "company_official": {
+                "name": {"label": "Firma Yetkilisi", "required": True},
+                "signature": {"label": "İmza", "required": True, "type": "signature"}
+            }
+        }
+        
+        print(f"DEBUG: ChatGPT-style extraction completed:")
+        print(f"  - Template: {template_name}")
+        print(f"  - Equipment: {equipment_type}")
+        print(f"  - Fields found: {len(found_fields)}")
+        print(f"  - Control items: {len(control_items)}")
+        print(f"  - Categories: {len(categories_dict)}")
+        
+        return template_data
+        
+    finally:
+        # Clean up temp file
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
 def parse_word_document(file_content: bytes, filename: str) -> dict:
     """Universal Word document parser for ALL inspection templates"""
     try:

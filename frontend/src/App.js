@@ -977,7 +977,7 @@ const PlanlamaDashboard = () => {
       <h1 className="text-3xl font-bold text-gray-900">Planlama Dashboard</h1>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <StatCard
           title="Toplam Müşteri"
           value={stats.total_customers || 0}

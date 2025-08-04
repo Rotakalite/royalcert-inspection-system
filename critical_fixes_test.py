@@ -201,7 +201,7 @@ class CriticalFixesTester:
             else:
                 print(f"   ❌ Failed to get inspections: {inspections_response.status_code}")
             
-            success = not problematic_questions and all_53_questions_covered
+            success = not problematic_questions and all_53_questions_covered and questions_41_48_in_F and questions_49_53_in_G
             
             if success:
                 print(f"\n🎉 CRITICAL FIX 1 SUCCESS: Inspector form question cutting issue RESOLVED!")

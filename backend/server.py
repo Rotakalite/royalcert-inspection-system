@@ -343,6 +343,254 @@ async def delete_customer(customer_id: str, current_user: User = Depends(require
         raise HTTPException(status_code=404, detail="Customer not found")
     return {"message": "Customer deleted successfully"}
 
+# ===================== BULK IMPORT =====================
+
+@app.post("/api/customers/bulk-import", response_model=BulkImportResult)
+async def bulk_import_customers(
+    file: UploadFile = File(...),
+    current_user: User = Depends(require_role(UserRole.PLANLAMA_UZMANI))
+):
+    """
+    Excel dosyasından müşteri toplu yükleme
+    Excel sütunları: A: Muayene Alanı, B: Muayene Alt Alanı, C: Muayene Türü, 
+    D: Referans, E: Muayene Tarihi, F: Zorunlu/Gönüllü Alan, G: Müşteri Adı, 
+    H: Müşteri Adresi, I: Denetçi Adı, J: Denetçi Lokasyonu, 
+    K: Rapor Onay Tarihi, L: Raporu Onaylayan Teknik Yönetici
+    """
+    
+    # File type validation
+    if not file.filename.endswith(('.xlsx', '.xls', '.csv')):
+        raise HTTPException(status_code=400, detail="Sadece Excel (.xlsx, .xls) veya CSV dosyaları kabul edilir")
+    
+    try:
+        # Read file content
+        file_content = await file.read()
+        
+        # Parse Excel/CSV
+        if file.filename.endswith('.csv'):
+            df = pd.read_csv(io.BytesIO(file_content))
+        else:
+            df = pd.read_excel(io.BytesIO(file_content), engine='openpyxl')
+        
+        # Define expected columns
+        expected_columns = [
+            'Muayene Alanı',
+            'Muayene Alt Alanı', 
+            'Muayene Türü',
+            'Referans',
+            'Muayene Tarihi',
+            'Zorunlu Alan ya da Gönüllü Alan',
+            'Müşteri Adı',
+            'Müşteri Adresi',
+            'Denetçi Adı',
+            'Denetçinin Lokasyonu',
+            'Rapor Onay Tarihi',
+            'Raporu Onaylayan Teknik Yönetici'
+        ]
+        
+        # Check if we have the expected columns, if not use first 12 columns
+        if len(df.columns) >= 12:
+            df.columns = expected_columns[:len(df.columns)]
+        else:
+            raise HTTPException(status_code=400, detail="Excel dosyasında en az 12 sütun olmalı")
+        
+        # Initialize counters
+        total_rows = len(df)
+        successful_imports = 0
+        failed_imports = 0
+        errors = []
+        warnings = []
+        
+        # Process each row
+        for index, row in df.iterrows():
+            try:
+                # Skip empty rows or rows without customer name
+                customer_name = str(row.get('Müşteri Adı', '')).strip()
+                customer_address = str(row.get('Müşteri Adresi', '')).strip()
+                
+                if not customer_name or customer_name == 'nan' or customer_name == '-':
+                    warnings.append(f"Satır {index + 2}: Müşteri adı boş, atlanıyor")
+                    continue
+                
+                if not customer_address or customer_address == 'nan' or customer_address == '-':
+                    warnings.append(f"Satır {index + 2}: Müşteri adresi boş, atlanıyor") 
+                    continue
+                
+                # Clean and prepare data
+                def clean_value(val):
+                    if pd.isna(val) or str(val).strip() in ['', 'nan', '-']:
+                        return None
+                    return str(val).strip()
+                
+                # Check if customer already exists
+                existing_customer = await db.customers.find_one({"company_name": customer_name})
+                
+                equipment_info = {}
+                muayene_alani = clean_value(row.get('Muayene Alanı'))
+                muayene_alt_alani = clean_value(row.get('Muayene Alt Alanı'))
+                
+                if muayene_alani or muayene_alt_alani:
+                    equipment_info = {
+                        "muayene_alani": muayene_alani,
+                        "muayene_alt_alani": muayene_alt_alani,
+                        "muayene_turu": clean_value(row.get('Muayene Türü')),
+                        "referans": clean_value(row.get('Referans')),
+                        "muayene_tarihi": clean_value(row.get('Muayene Tarihi')),
+                        "zorunlu_alan": clean_value(row.get('Zorunlu Alan ya da Gönüllü Alan')),
+                        "denetci_adi": clean_value(row.get('Denetçi Adı')),
+                        "denetci_lokasyonu": clean_value(row.get('Denetçinin Lokasyonu')),
+                        "rapor_onay_tarihi": clean_value(row.get('Rapor Onay Tarihi')),
+                        "rapor_onaylayan": clean_value(row.get('Raporu Onaylayan Teknik Yönetici'))
+                    }
+                
+                if existing_customer:
+                    # Update existing customer with new equipment info if provided
+                    if equipment_info:
+                        existing_equipments = existing_customer.get('equipments', [])
+                        
+                        # Check if similar equipment already exists
+                        equipment_exists = False
+                        for eq in existing_equipments:
+                            if (eq.get('muayene_alani') == equipment_info.get('muayene_alani') and 
+                                eq.get('muayene_alt_alani') == equipment_info.get('muayene_alt_alani')):
+                                equipment_exists = True
+                                break
+                        
+                        if not equipment_exists:
+                            existing_equipments.append(equipment_info)
+                            await db.customers.update_one(
+                                {"id": existing_customer["id"]},
+                                {"$set": {"equipments": existing_equipments}}
+                            )
+                            warnings.append(f"Satır {index + 2}: Müşteri mevcut, yeni ekipman bilgisi eklendi")
+                        else:
+                            warnings.append(f"Satır {index + 2}: Müşteri ve ekipman bilgisi zaten mevcut")
+                else:
+                    # Create new customer
+                    customer_data = {
+                        "id": str(uuid.uuid4()),
+                        "company_name": customer_name,
+                        "contact_person": customer_name,  # Default to company name
+                        "phone": "",  # Will be empty, can be updated later
+                        "email": "",  # Will be empty, can be updated later
+                        "address": customer_address,
+                        "equipments": [equipment_info] if equipment_info else [],
+                        "created_at": datetime.utcnow(),
+                        "import_source": "bulk_import",
+                        "imported_by": current_user.id,
+                        "imported_at": datetime.utcnow()
+                    }
+                    
+                    await db.customers.insert_one(customer_data)
+                
+                successful_imports += 1
+                    
+            except Exception as e:
+                failed_imports += 1
+                errors.append({
+                    "row": index + 2,
+                    "error": str(e),
+                    "data": dict(row) if hasattr(row, 'to_dict') else str(row)
+                })
+        
+        result = BulkImportResult(
+            total_rows=total_rows,
+            successful_imports=successful_imports,
+            failed_imports=failed_imports,
+            errors=errors,
+            warnings=warnings
+        )
+        
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Dosya işleme hatası: {str(e)}")
+
+@app.get("/api/customers/bulk-import/template")
+async def download_bulk_import_template(current_user: User = Depends(require_role(UserRole.PLANLAMA_UZMANI))):
+    """Bulk import için Excel template'ini indirme endpoint'i"""
+    
+    # Template headers
+    headers = [
+        'Muayene Alanı',
+        'Muayene Alt Alanı', 
+        'Muayene Türü',
+        'Referans',
+        'Muayene Tarihi',
+        'Zorunlu Alan ya da Gönüllü Alan',
+        'Müşteri Adı',
+        'Müşteri Adresi',
+        'Denetçi Adı',
+        'Denetçinin Lokasyonu',
+        'Rapor Onay Tarihi',
+        'Raporu Onaylayan Teknik Yönetici'
+    ]
+    
+    # Sample data
+    sample_data = [
+        [
+            'Kaldırma ve İndirme Ekipmanları',
+            'CARASKAL',
+            'PERİYODİK',
+            'TSE EN 280',
+            '2025-01-15',
+            'Zorunlu Alan',
+            'ABC İnşaat Ltd. Şti.',
+            'İstanbul, Türkiye',
+            'Mehmet Yılmaz',
+            'İstanbul',
+            '2025-01-20',
+            'Ali Koç'
+        ],
+        [
+            'İş Güvenliği Ekipmanları',
+            'İSKELE',
+            'İLK MONTAJ',
+            'TS 498',
+            '2025-02-10',
+            'Gönüllü Alan',
+            'XYZ Yapı A.Ş.',
+            'Ankara, Türkiye',
+            'Ayşe Demir',
+            'Ankara',
+            '',
+            ''
+        ]
+    ]
+    
+    # Create DataFrame
+    df = pd.DataFrame(sample_data, columns=headers)
+    
+    # Create Excel file in memory
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Müşteri Listesi')
+        
+        # Get workbook and worksheet
+        workbook = writer.book
+        worksheet = writer.sheets['Müşteri Listesi']
+        
+        # Adjust column widths
+        for column in worksheet.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            worksheet.column_dimensions[column_letter].width = adjusted_width
+    
+    output.seek(0)
+    
+    return {
+        "message": "Template hazırlandı",
+        "filename": "musteri_listesi_template.xlsx",
+        "content": output.getvalue().hex()  # Send as hex string
+    }
+
 # ===================== EQUIPMENT TEMPLATES =====================
 
 # ===================== CARASKAL TEMPLATE DATA =====================

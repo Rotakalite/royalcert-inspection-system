@@ -1232,7 +1232,7 @@ async def startup_event():
 # ===================== TEMPLATE UPLOAD & WORD PARSING =====================
 
 def parse_word_document(file_content: bytes, filename: str) -> dict:
-    """Parse Word document to extract inspection template structure"""
+    """Universal Word document parser for ALL inspection templates"""
     try:
         # Read Word document
         doc = Document(io.BytesIO(file_content))
@@ -1244,7 +1244,7 @@ def parse_word_document(file_content: bytes, filename: str) -> dict:
         
         text = '\n'.join(full_text)
         
-        # Extract table data for better structure parsing
+        # Extract table data for structured parsing
         tables = []
         for table in doc.tables:
             table_data = []
@@ -1266,11 +1266,11 @@ def parse_word_document(file_content: bytes, filename: str) -> dict:
             equipment_type = "FORKLIFT"
         elif "CARASKAL" in filename_upper:
             equipment_type = "CARASKAL"
-        elif "ISKELE" in filename_upper:
+        elif "ISKELE" in filename_upper or "İSKELE" in filename_upper:
             equipment_type = "ISKELE"
         elif "VINC" in filename_upper or "CRANE" in filename_upper:
             equipment_type = "VINC"
-        elif "ASANSÖR" in filename_upper or "ELEVATOR" in filename_upper:
+        elif "ASANSÖR" in filename_upper or "ASANSOR" in filename_upper or "ELEVATOR" in filename_upper:
             equipment_type = "ASANSÖR"
         
         # Determine template type
@@ -1278,197 +1278,13 @@ def parse_word_document(file_content: bytes, filename: str) -> dict:
             template_type = "REPORT"
         elif "FORM" in filename_upper:
             template_type = "FORM"
+
+        print(f"DEBUG: Parsing {equipment_type} {template_type} template from {filename}")
+
+        # UNIVERSAL TEMPLATE STRUCTURE PARSER
+        template_structure = parse_universal_template_structure(text, tables, equipment_type)
         
-        # SMART Parse control items from text - GET REAL CONTROL ITEMS ONLY
-        control_items = []
-        categories = {}
-        
-        # Look for numbered items (1., 2., 3., etc.) in text - BETTER PATTERN
-        item_pattern = r'^(\d+)\.\s*(.+)$'
-        matches = re.findall(item_pattern, text, re.MULTILINE)
-        
-        # Smart filtering to get REAL control items only
-        valid_matches = []
-        seen_texts = set()  # Prevent duplicates
-        
-        for match in matches:
-            item_number = int(match[0])
-            item_text = match[1].strip()
-            
-            # Skip if item number is unreasonable (but not too restrictive)
-            if item_number < 1 or item_number > 100:  # Allow up to 100 for complex equipment
-                continue
-                
-            # Skip if item text is too short (real control items are descriptive)
-            if len(item_text) < 15:  # Real control items are at least 15 chars
-                continue
-                
-            # Skip common headers and non-control text (SMART FILTERING)
-            skip_patterns = [
-                'GENEL', 'BİLGİLER', 'MUAYENE', 'KONTROL', 'ETİKET', 'TEST', 'FORM', 'RAPOR', 
-                'BAŞLIK', 'TABLE', 'DEĞER', 'DURUM', 'TARİH', 'NO', 'ADI', 'KODU', 'MARKASı',
-                'TİPİ', 'SERİ', 'İMAL', 'YIL', 'KAPASITE', 'YÜKSEKLIK', 'MESAFE', 'ÖLÇÜM',
-                'DEĞERLENDİRME', 'AÇIKLAMA', 'NOT'
-            ]
-            
-            # Skip if item text is primarily a header/label
-            if any(pattern in item_text.upper() for pattern in skip_patterns):
-                continue
-                
-            # Skip if text contains primarily numbers/codes/values (not control descriptions)  
-            if re.search(r'^\d+[.\-/\s]*\d*$', item_text.strip()):
-                continue
-                
-            # Skip repetitive or too similar texts
-            text_key = re.sub(r'\s+', ' ', item_text.lower())
-            if text_key in seen_texts:
-                continue
-            seen_texts.add(text_key)
-            
-            # Skip if text is primarily symbols or formatting
-            if len(re.sub(r'[^a-zA-ZğüşıöçĞÜŞİÖÇ]', '', item_text)) < 10:
-                continue
-            
-            # This looks like a REAL control item!
-            valid_matches.append((item_number, item_text))
-        
-        # Sort by item number (preserve original order)
-        valid_matches.sort(key=lambda x: x[0])
-        
-        print(f"DEBUG: Found {len(valid_matches)} valid control items after smart filtering")
-        
-        current_category = 'A'
-        
-        for match in valid_matches:
-            item_number = int(match[0])
-            item_text = match[1].strip()
-            
-            # Smart category determination based on typical equipment inspection structure
-            if item_number <= 12:
-                current_category = 'A'  # Usually control/cabin systems
-            elif item_number <= 20:
-                current_category = 'B'  # Usually movement/drive systems  
-            elif item_number <= 27:
-                current_category = 'C'  # Usually indicators/warnings
-            elif item_number <= 35:
-                current_category = 'D'  # Usually braking systems
-            elif item_number <= 42:
-                current_category = 'E'  # Usually lifting/chains
-            elif item_number <= 48:
-                current_category = 'F'  # Usually forks/attachments
-            elif item_number <= 55:
-                current_category = 'G'  # Usually fuel/emissions
-            else:
-                current_category = 'H'  # Usually other controls/safety
-            
-            # Add to categories count
-            if current_category not in categories:
-                categories[current_category] = 0
-            categories[current_category] += 1
-            
-            control_items.append({
-                "id": item_number,
-                "text": item_text,
-                "category": current_category,
-                "has_dropdown": True,  # All items have U/UD/U.Y dropdown
-                "has_comment": True,   # All items have comment field
-                "has_photo": True      # All items can have photos
-            })
-        
-        # FALLBACK: If no numbered items found, try smarter table parsing
-        if not control_items and tables:
-            print("DEBUG: No numbered items found, trying smart table parsing...")
-            item_id = 1
-            seen_texts = set()
-            
-            for table in tables:
-                for row in table:
-                    for cell_text in row:
-                        # Smart table cell filtering for REAL control items
-                        if (len(cell_text) > 20 and len(cell_text) < 300 and  # Reasonable length
-                            not any(x in cell_text.upper() for x in ['GENEL', 'BİLGİLER', 'MUAYENE', 'TEST', 'ETİKET', 
-                                                                     'KONTROL', 'FORM', 'RAPOR', 'TABLE', 'BAŞLIK',
-                                                                     'NO', 'ADI', 'KODU', 'DURUM', 'TARİH']) and
-                            not cell_text.upper().strip() in ['D', 'U', 'UD', 'U.Y'] and
-                            cell_text.count('.') < 5 and  # Avoid dotted number sequences
-                            len(re.sub(r'[^a-zA-ZğüşıöçĞÜŞİÖÇ]', '', cell_text)) > 15):  # Has enough letters
-                            
-                            # Check for duplicates
-                            text_key = re.sub(r'\s+', ' ', cell_text.lower().strip())
-                            if text_key not in seen_texts:
-                                seen_texts.add(text_key)
-                                
-                                # Smart category assignment
-                                if item_id <= 12:
-                                    current_category = 'A'
-                                elif item_id <= 20:
-                                    current_category = 'B'
-                                elif item_id <= 27:
-                                    current_category = 'C'
-                                elif item_id <= 35:
-                                    current_category = 'D'
-                                elif item_id <= 42:
-                                    current_category = 'E'
-                                elif item_id <= 48:
-                                    current_category = 'F'
-                                elif item_id <= 55:
-                                    current_category = 'G'
-                                else:
-                                    current_category = 'H'
-                                
-                                control_items.append({
-                                    "id": item_id,
-                                    "text": cell_text.strip(),
-                                    "category": current_category,
-                                    "has_dropdown": True,
-                                    "has_comment": True,
-                                    "has_photo": True
-                                })
-                                item_id += 1
-                                
-                                # Reasonable limit - but not too restrictive
-                                if item_id > 80:  # Allow up to 80 for complex equipment
-                                    break
-            
-            print(f"DEBUG: Table parsing found {len(control_items)} control items")
-        
-        # Group control items by category
-        categories_dict = {}
-        for item in control_items:
-            category = item.get('category', 'A')
-            if category not in categories_dict:
-                categories_dict[category] = []
-            categories_dict[category].append({
-                "id": item["id"],
-                "text": item["text"],
-                "category": category,
-                "input_type": "dropdown",
-                "has_comment": True,
-                "required": True
-            })
-        
-        # Create category structure
-        categories_list = []
-        category_names = {
-            'A': 'KATEGORI A',
-            'B': 'KATEGORI B', 
-            'C': 'KATEGORI C',
-            'D': 'KATEGORI D',
-            'E': 'KATEGORI E',
-            'F': 'KATEGORI F',
-            'G': 'KATEGORI G',
-            'H': 'KATEGORI H'
-        }
-        
-        for category_code in sorted(categories_dict.keys()):
-            categories_list.append({
-                "code": category_code,
-                "name": category_names.get(category_code, f"KATEGORI {category_code}"),
-                "items": categories_dict[category_code]
-            })
-        
-        # Create template structure
-        # Generate template name based on equipment type and template type
+        # Create template name based on equipment type and template type
         if template_type == "REPORT":
             template_name = f"{equipment_type} MUAYENE RAPORU"
             description = f"{equipment_type} ekipmanı için otomatik PDF rapor template'i"
@@ -1479,13 +1295,26 @@ def parse_word_document(file_content: bytes, filename: str) -> dict:
         template_data = {
             "name": template_name,
             "equipment_type": equipment_type,
-            "template_type": template_type,  # FORM or REPORT
+            "template_type": template_type,
             "description": description,
-            "categories": categories_list,
-            "total_items": len(control_items),
             "parsed_from": filename,
             "parse_date": datetime.utcnow(),
-            "is_active": True
+            "is_active": True,
+            
+            # UNIVERSAL TEMPLATE STRUCTURE
+            "general_info": template_structure["general_info"],
+            "measurement_devices": template_structure["measurement_devices"], 
+            "equipment_info": template_structure["equipment_info"],
+            "test_values": template_structure["test_values"],
+            "control_items": template_structure["control_items"],
+            "categories": template_structure["categories"],
+            "test_experiments": template_structure["test_experiments"],
+            "defect_explanations": template_structure["defect_explanations"],
+            "notes": template_structure["notes"],
+            "result_opinion": template_structure["result_opinion"],
+            "inspector_info": template_structure["inspector_info"],
+            "company_official": template_structure["company_official"],
+            "total_items": len(template_structure["control_items"]),
         }
         
         return template_data
@@ -1493,6 +1322,194 @@ def parse_word_document(file_content: bytes, filename: str) -> dict:
     except Exception as e:
         print(f"Error parsing Word document {filename}: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Failed to parse Word document: {str(e)}")
+
+def parse_universal_template_structure(text: str, tables: list, equipment_type: str) -> dict:
+    """Parse universal template structure from Word document text and tables"""
+    
+    print(f"DEBUG: Starting universal parsing for {equipment_type}")
+    
+    # Initialize template structure with placeholder functions
+    structure = {
+        "general_info": {},  # Placeholder - will be implemented
+        "measurement_devices": [],  # Placeholder - will be implemented
+        "equipment_info": {},  # Placeholder - will be implemented
+        "test_values": {},  # Placeholder - will be implemented
+        "control_items": [],  # Will be populated below
+        "categories": {},
+        "test_experiments": [],  # Placeholder - will be implemented
+        "defect_explanations": "",  # Placeholder - will be implemented
+        "notes": "",  # Placeholder - will be implemented
+        "result_opinion": "",  # Placeholder - will be implemented
+        "inspector_info": {},  # Placeholder - will be implemented
+        "company_official": {}  # Placeholder - will be implemented
+    }
+    
+    # Extract control items using existing logic
+    control_items = []
+    
+    # Look for numbered items (1., 2., 3., etc.) in text - BETTER PATTERN
+    item_pattern = r'^(\d+)\.\s*(.+)$'
+    matches = re.findall(item_pattern, text, re.MULTILINE)
+    
+    # Smart filtering to get REAL control items only
+    valid_matches = []
+    seen_texts = set()  # Prevent duplicates
+    
+    for match in matches:
+        item_number = int(match[0])
+        item_text = match[1].strip()
+        
+        # Skip if item number is unreasonable (but not too restrictive)
+        if item_number < 1 or item_number > 100:  # Allow up to 100 for complex equipment
+            continue
+            
+        # Skip if item text is too short (real control items are descriptive)
+        if len(item_text) < 15:  # Real control items are at least 15 chars
+            continue
+            
+        # Skip common headers and non-control text (SMART FILTERING)
+        skip_patterns = [
+            'GENEL', 'BİLGİLER', 'MUAYENE', 'KONTROL', 'ETİKET', 'TEST', 'FORM', 'RAPOR', 
+            'BAŞLIK', 'TABLE', 'DEĞER', 'DURUM', 'TARİH', 'NO', 'ADI', 'KODU', 'MARKASı',
+            'TİPİ', 'SERİ', 'İMAL', 'YIL', 'KAPASITE', 'YÜKSEKLIK', 'MESAFE', 'ÖLÇÜM',
+            'DEĞERLENDİRME', 'AÇIKLAMA', 'NOT'
+        ]
+        
+        # Skip if item text is primarily a header/label
+        if any(pattern in item_text.upper() for pattern in skip_patterns):
+            continue
+            
+        # Skip if text contains primarily numbers/codes/values (not control descriptions)  
+        if re.search(r'^\d+[.\-/\s]*\d*$', item_text.strip()):
+            continue
+            
+        # Skip repetitive or too similar texts
+        text_key = re.sub(r'\s+', ' ', item_text.lower())
+        if text_key in seen_texts:
+            continue
+        seen_texts.add(text_key)
+        
+        # Skip if text is primarily symbols or formatting
+        if len(re.sub(r'[^a-zA-ZğüşıöçĞÜŞİÖÇ]', '', item_text)) < 10:
+            continue
+        
+        # This looks like a REAL control item!
+        valid_matches.append((item_number, item_text))
+    
+    # Sort by item number (preserve original order)
+    valid_matches.sort(key=lambda x: x[0])
+    
+    print(f"DEBUG: Found {len(valid_matches)} valid control items after smart filtering")
+    
+    current_category = 'A'
+    
+    for match in valid_matches:
+        item_number = int(match[0])
+        item_text = match[1].strip()
+        
+        # Smart category determination based on typical equipment inspection structure
+        if item_number <= 12:
+            current_category = 'A'  # Usually control/cabin systems
+        elif item_number <= 20:
+            current_category = 'B'  # Usually movement/drive systems  
+        elif item_number <= 27:
+            current_category = 'C'  # Usually indicators/warnings
+        elif item_number <= 35:
+            current_category = 'D'  # Usually braking systems
+        elif item_number <= 42:
+            current_category = 'E'  # Usually lifting/chains
+        elif item_number <= 48:
+            current_category = 'F'  # Usually forks/attachments
+        elif item_number <= 55:
+            current_category = 'G'  # Usually fuel/emissions
+        else:
+            current_category = 'H'  # Usually other controls/safety
+        
+        control_items.append({
+            "id": item_number,
+            "text": item_text,
+            "category": current_category,
+            "has_dropdown": True,  # All items have U/UD/U.Y dropdown
+            "has_comment": True,   # All items have comment field
+            "has_photo": True      # All items can have photos
+        })
+
+    # FALLBACK: If no numbered items found, try smarter table parsing
+    if not control_items and tables:
+        print("DEBUG: No numbered items found, trying smart table parsing...")
+        item_id = 1
+        seen_texts = set()
+        
+        for table in tables:
+            for row in table:
+                for cell_text in row:
+                    # Smart table cell filtering for REAL control items
+                    if (len(cell_text) > 20 and len(cell_text) < 300 and  # Reasonable length
+                        not any(x in cell_text.upper() for x in ['GENEL', 'BİLGİLER', 'MUAYENE', 'TEST', 'ETİKET', 
+                                                                 'KONTROL', 'FORM', 'RAPOR', 'TABLE', 'BAŞLIK',
+                                                                 'NO', 'ADI', 'KODU', 'DURUM', 'TARİH']) and
+                        not cell_text.upper().strip() in ['D', 'U', 'UD', 'U.Y'] and
+                        cell_text.count('.') < 5 and  # Avoid dotted number sequences
+                        len(re.sub(r'[^a-zA-ZğüşıöçĞÜŞİÖÇ]', '', cell_text)) > 15):  # Has enough letters
+                        
+                        # Check for duplicates
+                        text_key = re.sub(r'\s+', ' ', cell_text.lower().strip())
+                        if text_key not in seen_texts:
+                            seen_texts.add(text_key)
+                            
+                            # Smart category assignment
+                            if item_id <= 12:
+                                current_category = 'A'
+                            elif item_id <= 20:
+                                current_category = 'B'
+                            elif item_id <= 27:
+                                current_category = 'C'
+                            elif item_id <= 35:
+                                current_category = 'D'
+                            elif item_id <= 42:
+                                current_category = 'E'
+                            elif item_id <= 48:
+                                current_category = 'F'
+                            elif item_id <= 55:
+                                current_category = 'G'
+                            else:
+                                current_category = 'H'
+                            
+                            control_items.append({
+                                "id": item_id,
+                                "text": cell_text.strip(),
+                                "category": current_category,
+                                "has_dropdown": True,
+                                "has_comment": True,
+                                "has_photo": True
+                            })
+                            item_id += 1
+                            
+                            # Reasonable limit - but not too restrictive
+                            if item_id > 80:  # Allow up to 80 for complex equipment
+                                break
+        
+        print(f"DEBUG: Table parsing found {len(control_items)} control items")
+    
+    # Update structure with parsed control items
+    structure["control_items"] = control_items
+    
+    # Group control items by categories
+    categories = {}
+    for item in control_items:
+        category = item.get("category", "A")
+        if category not in categories:
+            categories[category] = {
+                "name": f"KATEGORI {category}",
+                "items": []
+            }
+        categories[category]["items"].append(item)
+    
+    structure["categories"] = categories
+    
+    print(f"DEBUG: Parsed {len(control_items)} control items in {len(categories)} categories")
+    
+    return structure
 
 @app.post("/api/equipment-templates/upload")
 async def upload_template_document(

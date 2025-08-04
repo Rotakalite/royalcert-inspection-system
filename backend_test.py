@@ -17,11 +17,13 @@ BACKEND_URL = "https://405a5b7a-3c02-4793-9fcc-5203d2944620.preview.emergentagen
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "admin123"
 
-class RoyalCertTester:
+class RoyalCertPDFReportingTester:
     def __init__(self):
         self.session = requests.Session()
         self.token = None
         self.user_info = None
+        self.test_customer_id = None
+        self.test_inspection_id = None
         
     def authenticate(self):
         """Authenticate with admin credentials"""
@@ -56,441 +58,434 @@ class RoyalCertTester:
         except Exception as e:
             print(f"❌ Authentication error: {str(e)}")
             return False
-    
-    def test_template_download(self):
-        """Test Excel template download endpoint"""
-        print("\n📥 Testing Template Download...")
+
+    def test_current_user_endpoint(self):
+        """Test GET /api/auth/me - Current user info for inspector signatures"""
+        print("\n👤 Testing Current User Info Endpoint...")
         
         try:
-            response = self.session.get(f"{BACKEND_URL}/customers/bulk-import/template")
-            print(f"Template Download Status: {response.status_code}")
+            response = self.session.get(f"{BACKEND_URL}/auth/me")
+            print(f"Current User Status: {response.status_code}")
             
             if response.status_code == 200:
-                data = response.json()
+                user_data = response.json()
+                print("✅ Current user endpoint working")
+                print(f"   User ID: {user_data.get('id')}")
+                print(f"   Full Name: {user_data.get('full_name')}")
+                print(f"   Role: {user_data.get('role')}")
+                print(f"   Email: {user_data.get('email')}")
                 
-                # Check response structure
-                if "message" in data and "filename" in data and "content" in data:
-                    print(f"✅ Template download successful")
-                    print(f"   Filename: {data['filename']}")
-                    print(f"   Message: {data['message']}")
-                    
-                    # Try to decode the hex content
-                    try:
-                        excel_content = bytes.fromhex(data['content'])
-                        
-                        # Parse the Excel content to verify structure
-                        df = pd.read_excel(io.BytesIO(excel_content), engine='openpyxl')
-                        
-                        expected_columns = [
-                            'Muayene Alanı',
-                            'Muayene Alt Alanı', 
-                            'Muayene Türü',
-                            'Referans',
-                            'Muayene Tarihi',
-                            'Zorunlu Alan ya da Gönüllü Alan',
-                            'Müşteri Adı',
-                            'Müşteri Adresi',
-                            'Denetçi Adı',
-                            'Denetçinin Lokasyonu',
-                            'Rapor Onay Tarihi',
-                            'Raporu Onaylayan Teknik Yönetici'
-                        ]
-                        
-                        print(f"   Template has {len(df.columns)} columns")
-                        print(f"   Expected {len(expected_columns)} columns")
-                        
-                        if len(df.columns) == len(expected_columns):
-                            print("✅ Template has correct number of columns (12)")
-                            
-                            # Check if columns match expected names
-                            columns_match = all(col in df.columns for col in expected_columns)
-                            if columns_match:
-                                print("✅ All expected column names present")
-                            else:
-                                print("⚠️  Column names may differ from expected")
-                                print(f"   Actual columns: {list(df.columns)}")
-                            
-                            # Check sample data
-                            if len(df) > 0:
-                                print(f"✅ Template contains {len(df)} sample rows")
-                                print("   Sample data preview:")
-                                for i, row in df.head(2).iterrows():
-                                    print(f"     Row {i+1}: {row['Müşteri Adı']} - {row['Müşteri Adresi']}")
-                            else:
-                                print("⚠️  Template has no sample data")
-                                
-                        else:
-                            print(f"❌ Template has incorrect number of columns")
-                            
-                        return True
-                        
-                    except Exception as e:
-                        print(f"❌ Failed to parse Excel content: {str(e)}")
-                        return False
-                        
+                # Check if data is suitable for PDF signatures
+                required_fields = ['id', 'full_name', 'role', 'email']
+                missing_fields = [field for field in required_fields if not user_data.get(field)]
+                
+                if not missing_fields:
+                    print("✅ All required user fields available for PDF signatures")
                 else:
-                    print(f"❌ Invalid response structure: {data}")
-                    return False
-                    
+                    print(f"⚠️  Missing fields for PDF signatures: {missing_fields}")
+                
+                return True, user_data
             else:
-                print(f"❌ Template download failed: {response.text}")
-                return False
+                print(f"❌ Current user endpoint failed: {response.text}")
+                return False, None
                 
         except Exception as e:
-            print(f"❌ Template download error: {str(e)}")
-            return False
-    
-    def create_test_excel(self, scenario="valid"):
-        """Create test Excel files for different scenarios"""
-        
-        headers = [
-            'Muayene Alanı',
-            'Muayene Alt Alanı', 
-            'Muayene Türü',
-            'Referans',
-            'Muayene Tarihi',
-            'Zorunlu Alan ya da Gönüllü Alan',
-            'Müşteri Adı',
-            'Müşteri Adresi',
-            'Denetçi Adı',
-            'Denetçinin Lokasyonu',
-            'Rapor Onay Tarihi',
-            'Raporu Onaylayan Teknik Yönetici'
-        ]
-        
-        if scenario == "valid":
-            data = [
-                [
-                    'Kaldırma ve İndirme Ekipmanları',
-                    'CARASKAL',
-                    'PERİYODİK',
-                    'TSE EN 280',
-                    '2025-01-15',
-                    'Zorunlu Alan',
-                    'Test İnşaat Ltd. Şti.',
-                    'İstanbul, Beşiktaş, Test Caddesi No:123',
-                    'Ahmet Yılmaz',
-                    'İstanbul',
-                    '2025-01-20',
-                    'Mehmet Koç'
-                ],
-                [
-                    'İş Güvenliği Ekipmanları',
-                    'İSKELE',
-                    'İLK MONTAJ',
-                    'TS 498',
-                    '2025-02-10',
-                    'Gönüllü Alan',
-                    'Demo Yapı A.Ş.',
-                    'Ankara, Çankaya, Demo Sokak No:456',
-                    'Fatma Demir',
-                    'Ankara',
-                    '',
-                    ''
-                ]
-            ]
-        elif scenario == "missing_mandatory":
-            data = [
-                [
-                    'Kaldırma ve İndirme Ekipmanları',
-                    'CARASKAL',
-                    'PERİYODİK',
-                    'TSE EN 280',
-                    '2025-01-15',
-                    'Zorunlu Alan',
-                    '',  # Missing customer name
-                    'İstanbul, Beşiktaş, Test Caddesi No:123',
-                    'Ahmet Yılmaz',
-                    'İstanbul',
-                    '2025-01-20',
-                    'Mehmet Koç'
-                ],
-                [
-                    'İş Güvenliği Ekipmanları',
-                    'İSKELE',
-                    'İLK MONTAJ',
-                    'TS 498',
-                    '2025-02-10',
-                    'Gönüllü Alan',
-                    'Demo Yapı A.Ş.',
-                    '',  # Missing customer address
-                    'Fatma Demir',
-                    'Ankara',
-                    '',
-                    ''
-                ]
-            ]
-        elif scenario == "empty_values":
-            data = [
-                [
-                    '-',  # Empty marker
-                    '',   # Empty string
-                    'PERİYODİK',
-                    None,  # None value
-                    '2025-01-15',
-                    'Zorunlu Alan',
-                    'Test Şirketi Ltd.',
-                    'Test Adresi, İstanbul',
-                    '-',
-                    '',
-                    None,
-                    '-'
-                ]
-            ]
-        elif scenario == "duplicate":
-            data = [
-                [
-                    'Kaldırma ve İndirme Ekipmanları',
-                    'CARASKAL',
-                    'PERİYODİK',
-                    'TSE EN 280',
-                    '2025-01-15',
-                    'Zorunlu Alan',
-                    'Duplicate Test Şirketi',
-                    'İstanbul, Test Adresi',
-                    'Ahmet Yılmaz',
-                    'İstanbul',
-                    '2025-01-20',
-                    'Mehmet Koç'
-                ],
-                [
-                    'İş Güvenliği Ekipmanları',
-                    'İSKELE',
-                    'İLK MONTAJ',
-                    'TS 498',
-                    '2025-02-10',
-                    'Gönüllü Alan',
-                    'Duplicate Test Şirketi',  # Same company name
-                    'İstanbul, Test Adresi',   # Same address
-                    'Fatma Demir',
-                    'Ankara',
-                    '',
-                    ''
-                ]
-            ]
-        
-        # Create DataFrame
-        df = pd.DataFrame(data, columns=headers)
-        
-        # Save to BytesIO
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df.to_excel(writer, index=False, sheet_name='Müşteri Listesi')
-        
-        output.seek(0)
-        return output.getvalue()
-    
-    def test_bulk_import(self, scenario="valid"):
-        """Test bulk import with different scenarios"""
-        print(f"\n📤 Testing Bulk Import - {scenario.upper()} scenario...")
+            print(f"❌ Current user endpoint error: {str(e)}")
+            return False, None
+
+    def test_users_list_endpoint(self):
+        """Test GET /api/users - List users for inspector information"""
+        print("\n👥 Testing Users List Endpoint...")
         
         try:
-            # Create test Excel file
-            excel_content = self.create_test_excel(scenario)
+            response = self.session.get(f"{BACKEND_URL}/users")
+            print(f"Users List Status: {response.status_code}")
             
-            # Prepare file upload
-            files = {
-                'file': ('test_import.xlsx', excel_content, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            if response.status_code == 200:
+                users_data = response.json()
+                print(f"✅ Users list endpoint working")
+                print(f"   Total users: {len(users_data)}")
+                
+                # Analyze user data structure for PDF reporting
+                if users_data:
+                    sample_user = users_data[0]
+                    print("   Sample user structure:")
+                    for key, value in sample_user.items():
+                        print(f"     {key}: {type(value).__name__}")
+                    
+                    # Check for inspectors (denetci role)
+                    inspectors = [user for user in users_data if user.get('role') == 'denetci']
+                    print(f"   Available inspectors: {len(inspectors)}")
+                    
+                    # Check for technical managers (teknik_yonetici role)
+                    tech_managers = [user for user in users_data if user.get('role') == 'teknik_yonetici']
+                    print(f"   Available technical managers: {len(tech_managers)}")
+                    
+                    return True, users_data
+                else:
+                    print("⚠️  No users found in system")
+                    return True, []
+            else:
+                print(f"❌ Users list endpoint failed: {response.text}")
+                return False, None
+                
+        except Exception as e:
+            print(f"❌ Users list endpoint error: {str(e)}")
+            return False, None
+
+    def test_customers_list_endpoint(self):
+        """Test GET /api/customers - List customers for PDF reports"""
+        print("\n🏢 Testing Customers List Endpoint...")
+        
+        try:
+            response = self.session.get(f"{BACKEND_URL}/customers")
+            print(f"Customers List Status: {response.status_code}")
+            
+            if response.status_code == 200:
+                customers_data = response.json()
+                print(f"✅ Customers list endpoint working")
+                print(f"   Total customers: {len(customers_data)}")
+                
+                # Analyze customer data structure for PDF reporting
+                if customers_data:
+                    sample_customer = customers_data[0]
+                    self.test_customer_id = sample_customer.get('id')  # Store for inspection tests
+                    
+                    print("   Sample customer structure:")
+                    for key, value in sample_customer.items():
+                        if isinstance(value, list):
+                            print(f"     {key}: list with {len(value)} items")
+                            if value and isinstance(value[0], dict):
+                                print(f"       Sample item keys: {list(value[0].keys())}")
+                        else:
+                            print(f"     {key}: {type(value).__name__} = {value}")
+                    
+                    # Check equipment data availability
+                    customers_with_equipment = [c for c in customers_data if c.get('equipments')]
+                    print(f"   Customers with equipment data: {len(customers_with_equipment)}")
+                    
+                    return True, customers_data
+                else:
+                    print("⚠️  No customers found in system")
+                    return True, []
+            else:
+                print(f"❌ Customers list endpoint failed: {response.text}")
+                return False, None
+                
+        except Exception as e:
+            print(f"❌ Customers list endpoint error: {str(e)}")
+            return False, None
+
+    def test_equipment_templates_endpoint(self):
+        """Test GET /api/equipment-templates - Get equipment templates for PDF reports"""
+        print("\n⚙️  Testing Equipment Templates Endpoint...")
+        
+        try:
+            response = self.session.get(f"{BACKEND_URL}/equipment-templates")
+            print(f"Equipment Templates Status: {response.status_code}")
+            
+            if response.status_code == 200:
+                templates_data = response.json()
+                print(f"✅ Equipment templates endpoint working")
+                print(f"   Total templates: {len(templates_data)}")
+                
+                # Analyze template data structure for PDF reporting
+                if templates_data:
+                    sample_template = templates_data[0]
+                    print("   Sample template structure:")
+                    for key, value in sample_template.items():
+                        if isinstance(value, list):
+                            print(f"     {key}: list with {len(value)} items")
+                            if value and isinstance(value[0], dict):
+                                print(f"       Sample category keys: {list(value[0].keys())}")
+                                if 'items' in value[0] and value[0]['items']:
+                                    print(f"       Sample item keys: {list(value[0]['items'][0].keys())}")
+                        else:
+                            print(f"     {key}: {type(value).__name__} = {value}")
+                    
+                    # Check for CARASKAL template specifically
+                    caraskal_template = next((t for t in templates_data if t.get('equipment_type') == 'CARASKAL'), None)
+                    if caraskal_template:
+                        print("   ✅ CARASKAL template found")
+                        print(f"     Categories: {len(caraskal_template.get('categories', []))}")
+                        total_items = sum(len(cat.get('items', [])) for cat in caraskal_template.get('categories', []))
+                        print(f"     Total control items: {total_items}")
+                    else:
+                        print("   ⚠️  CARASKAL template not found")
+                    
+                    return True, templates_data
+                else:
+                    print("⚠️  No equipment templates found")
+                    return True, []
+            else:
+                print(f"❌ Equipment templates endpoint failed: {response.text}")
+                return False, None
+                
+        except Exception as e:
+            print(f"❌ Equipment templates endpoint error: {str(e)}")
+            return False, None
+
+    def create_test_inspection(self):
+        """Create a test inspection for testing inspection endpoints"""
+        print("\n🔧 Creating Test Inspection...")
+        
+        if not self.test_customer_id:
+            print("❌ No customer ID available for test inspection")
+            return False
+        
+        try:
+            # Create test inspection data
+            inspection_data = {
+                "customer_id": self.test_customer_id,
+                "equipment_info": {
+                    "equipment_type": "CARASKAL",
+                    "serial_number": "TEST-001",
+                    "manufacturer": "Test Manufacturer",
+                    "model": "Test Model",
+                    "capacity": "5000 kg"
+                },
+                "inspector_id": self.user_info['id'],
+                "planned_date": "2025-01-20T10:00:00"
             }
             
-            response = self.session.post(f"{BACKEND_URL}/customers/bulk-import", files=files)
-            print(f"Bulk Import Status: {response.status_code}")
+            response = self.session.post(f"{BACKEND_URL}/inspections", json=inspection_data)
+            print(f"Create Inspection Status: {response.status_code}")
             
             if response.status_code == 200:
-                data = response.json()
-                
-                print(f"✅ Bulk import completed")
-                print(f"   Total rows: {data.get('total_rows', 0)}")
-                print(f"   Successful imports: {data.get('successful_imports', 0)}")
-                print(f"   Failed imports: {data.get('failed_imports', 0)}")
-                
-                if data.get('warnings'):
-                    print(f"   Warnings ({len(data['warnings'])}):")
-                    for warning in data['warnings'][:3]:  # Show first 3 warnings
-                        print(f"     - {warning}")
-                
-                if data.get('errors'):
-                    print(f"   Errors ({len(data['errors'])}):")
-                    for error in data['errors'][:3]:  # Show first 3 errors
-                        print(f"     - Row {error.get('row', 'N/A')}: {error.get('error', 'Unknown error')}")
-                
-                # Validate results based on scenario
-                if scenario == "valid":
-                    if data.get('successful_imports', 0) > 0 and data.get('failed_imports', 0) == 0:
-                        print("✅ Valid data processed successfully")
-                        return True
-                    else:
-                        print("⚠️  Expected successful imports for valid data")
-                        return False
-                        
-                elif scenario == "missing_mandatory":
-                    if data.get('warnings') and len(data['warnings']) > 0:
-                        print("✅ Missing mandatory fields handled correctly")
-                        return True
-                    else:
-                        print("⚠️  Expected warnings for missing mandatory fields")
-                        return False
-                        
-                elif scenario == "empty_values":
-                    print("✅ Empty values scenario processed")
-                    return True
-                    
-                elif scenario == "duplicate":
-                    if data.get('warnings') and any('mevcut' in warning for warning in data['warnings']):
-                        print("✅ Duplicate handling working correctly")
-                        return True
-                    else:
-                        print("⚠️  Expected duplicate handling warnings")
-                        return False
-                
+                inspection = response.json()
+                self.test_inspection_id = inspection.get('id')
+                print(f"✅ Test inspection created: {self.test_inspection_id}")
                 return True
-                
             else:
-                print(f"❌ Bulk import failed: {response.text}")
+                print(f"❌ Failed to create test inspection: {response.text}")
                 return False
                 
         except Exception as e:
-            print(f"❌ Bulk import error: {str(e)}")
+            print(f"❌ Create test inspection error: {str(e)}")
             return False
-    
-    def test_invalid_file_formats(self):
-        """Test bulk import with invalid file formats"""
-        print(f"\n🚫 Testing Invalid File Formats...")
+
+    def test_inspection_details_endpoint(self):
+        """Test GET /api/inspections/{id} - Get inspection details for PDF"""
+        print("\n📋 Testing Inspection Details Endpoint...")
         
-        test_cases = [
-            ("test.txt", "text/plain", b"This is a text file"),
-            ("test.pdf", "application/pdf", b"PDF content"),
-            ("test.doc", "application/msword", b"DOC content")
-        ]
+        if not self.test_inspection_id:
+            print("❌ No test inspection ID available")
+            return False, None
         
-        results = []
+        try:
+            response = self.session.get(f"{BACKEND_URL}/inspections/{self.test_inspection_id}")
+            print(f"Inspection Details Status: {response.status_code}")
+            
+            if response.status_code == 200:
+                inspection_data = response.json()
+                print("✅ Inspection details endpoint working")
+                
+                print("   Inspection data structure:")
+                for key, value in inspection_data.items():
+                    if isinstance(value, dict):
+                        print(f"     {key}: dict with keys {list(value.keys())}")
+                    elif isinstance(value, list):
+                        print(f"     {key}: list with {len(value)} items")
+                    else:
+                        print(f"     {key}: {type(value).__name__} = {value}")
+                
+                # Check essential fields for PDF generation
+                essential_fields = ['id', 'customer_id', 'equipment_info', 'inspector_id', 'status', 'planned_date']
+                missing_fields = [field for field in essential_fields if field not in inspection_data]
+                
+                if not missing_fields:
+                    print("✅ All essential fields available for PDF generation")
+                else:
+                    print(f"⚠️  Missing essential fields: {missing_fields}")
+                
+                return True, inspection_data
+            else:
+                print(f"❌ Inspection details endpoint failed: {response.text}")
+                return False, None
+                
+        except Exception as e:
+            print(f"❌ Inspection details endpoint error: {str(e)}")
+            return False, None
+
+    def test_inspection_form_endpoint(self):
+        """Test GET /api/inspections/{id}/form - Get inspection form data with results"""
+        print("\n📝 Testing Inspection Form Data Endpoint...")
         
-        for filename, content_type, content in test_cases:
-            try:
-                files = {
-                    'file': (filename, content, content_type)
+        if not self.test_inspection_id:
+            print("❌ No test inspection ID available")
+            return False, None
+        
+        try:
+            response = self.session.get(f"{BACKEND_URL}/inspections/{self.test_inspection_id}/form")
+            print(f"Inspection Form Status: {response.status_code}")
+            
+            if response.status_code == 200:
+                form_data = response.json()
+                print("✅ Inspection form endpoint working")
+                
+                print("   Form data structure:")
+                for key, value in form_data.items():
+                    if isinstance(value, dict):
+                        print(f"     {key}: dict with keys {list(value.keys())}")
+                    elif isinstance(value, list):
+                        print(f"     {key}: list with {len(value)} items")
+                        if value and isinstance(value[0], dict):
+                            print(f"       Sample item keys: {list(value[0].keys())}")
+                    else:
+                        print(f"     {key}: {type(value).__name__} = {value}")
+                
+                # Check control items availability for PDF
+                control_items = form_data.get('control_items', [])
+                print(f"   Control items available: {len(control_items)}")
+                
+                if control_items:
+                    sample_item = control_items[0]
+                    print(f"   Sample control item structure: {list(sample_item.keys())}")
+                
+                # Check form completion data
+                completion_percentage = form_data.get('completion_percentage', 0)
+                is_draft = form_data.get('is_draft', True)
+                print(f"   Form completion: {completion_percentage}% (Draft: {is_draft})")
+                
+                return True, form_data
+            else:
+                print(f"❌ Inspection form endpoint failed: {response.text}")
+                return False, None
+                
+        except Exception as e:
+            print(f"❌ Inspection form endpoint error: {str(e)}")
+            return False, None
+
+    def test_inspections_list_endpoint(self):
+        """Test GET /api/inspections - List all inspections"""
+        print("\n📊 Testing Inspections List Endpoint...")
+        
+        try:
+            response = self.session.get(f"{BACKEND_URL}/inspections")
+            print(f"Inspections List Status: {response.status_code}")
+            
+            if response.status_code == 200:
+                inspections_data = response.json()
+                print(f"✅ Inspections list endpoint working")
+                print(f"   Total inspections: {len(inspections_data)}")
+                
+                # Analyze inspection statuses for PDF reporting
+                if inspections_data:
+                    statuses = {}
+                    for inspection in inspections_data:
+                        status = inspection.get('status', 'unknown')
+                        statuses[status] = statuses.get(status, 0) + 1
+                    
+                    print("   Inspection statuses:")
+                    for status, count in statuses.items():
+                        print(f"     {status}: {count}")
+                    
+                    # Check for completed inspections (good candidates for PDF reports)
+                    completed_inspections = [i for i in inspections_data if i.get('status') in ['rapor_yazildi', 'onaylandi']]
+                    print(f"   Completed inspections (PDF ready): {len(completed_inspections)}")
+                
+                return True, inspections_data
+            else:
+                print(f"❌ Inspections list endpoint failed: {response.text}")
+                return False, None
+                
+        except Exception as e:
+            print(f"❌ Inspections list endpoint error: {str(e)}")
+            return False, None
+
+    def check_backend_dependencies(self):
+        """Check backend dependencies for PDF generation"""
+        print("\n📦 Checking Backend Dependencies for PDF Generation...")
+        
+        try:
+            # Check requirements.txt for PDF-related libraries
+            requirements_path = "/app/backend/requirements.txt"
+            if os.path.exists(requirements_path):
+                with open(requirements_path, 'r') as f:
+                    requirements = f.read()
+                
+                print("✅ Requirements.txt found")
+                
+                # Check for common PDF libraries
+                pdf_libraries = {
+                    'reportlab': 'reportlab' in requirements.lower(),
+                    'weasyprint': 'weasyprint' in requirements.lower(),
+                    'pdfkit': 'pdfkit' in requirements.lower(),
+                    'fpdf': 'fpdf' in requirements.lower(),
+                    'matplotlib': 'matplotlib' in requirements.lower(),
+                    'pillow': 'pillow' in requirements.lower() or 'pil' in requirements.lower()
                 }
                 
-                response = self.session.post(f"{BACKEND_URL}/customers/bulk-import", files=files)
+                print("   PDF-related libraries check:")
+                found_libraries = []
+                for lib, found in pdf_libraries.items():
+                    status = "✅" if found else "❌"
+                    print(f"     {lib}: {status}")
+                    if found:
+                        found_libraries.append(lib)
                 
-                if response.status_code == 400:
-                    print(f"✅ {filename}: Correctly rejected (400)")
-                    results.append(True)
+                if found_libraries:
+                    print(f"   Found PDF libraries: {', '.join(found_libraries)}")
                 else:
-                    print(f"❌ {filename}: Should have been rejected (got {response.status_code})")
-                    results.append(False)
+                    print("   ⚠️  No PDF generation libraries found in requirements.txt")
+                    print("   Recommendation: Add reportlab or weasyprint for PDF generation")
+                
+                return True, found_libraries
+            else:
+                print("❌ Requirements.txt not found")
+                return False, []
+                
+        except Exception as e:
+            print(f"❌ Dependencies check error: {str(e)}")
+            return False, []
+
+    def test_existing_report_endpoints(self):
+        """Check for any existing report-related endpoints"""
+        print("\n📄 Testing Existing Report Endpoints...")
+        
+        # Test common report endpoint patterns
+        report_endpoints = [
+            "/reports",
+            "/inspections/reports", 
+            "/inspections/pdf",
+            "/reports/pdf",
+            "/reports/generate",
+            "/api/reports",
+            "/api/inspections/reports",
+            "/api/reports/pdf"
+        ]
+        
+        existing_endpoints = []
+        
+        for endpoint in report_endpoints:
+            try:
+                full_url = f"{BACKEND_URL.replace('/api', '')}{endpoint}"
+                response = self.session.get(full_url)
+                
+                if response.status_code != 404:
+                    existing_endpoints.append({
+                        'endpoint': endpoint,
+                        'status': response.status_code,
+                        'response': response.text[:100] if response.text else 'No content'
+                    })
+                    print(f"   Found endpoint: {endpoint} (Status: {response.status_code})")
                     
             except Exception as e:
-                print(f"❌ {filename}: Error testing - {str(e)}")
-                results.append(False)
+                # Ignore connection errors for non-existent endpoints
+                pass
         
-        return all(results)
-    
-    def test_corrupted_excel(self):
-        """Test bulk import with corrupted Excel file"""
-        print(f"\n💥 Testing Corrupted Excel File...")
-        
-        try:
-            # Create corrupted Excel content
-            corrupted_content = b"This is not a valid Excel file content"
-            
-            files = {
-                'file': ('corrupted.xlsx', corrupted_content, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-            }
-            
-            response = self.session.post(f"{BACKEND_URL}/customers/bulk-import", files=files)
-            
-            if response.status_code == 400:
-                print(f"✅ Corrupted Excel file correctly rejected")
-                return True
-            else:
-                print(f"❌ Corrupted Excel file should have been rejected (got {response.status_code})")
-                return False
-                
-        except Exception as e:
-            print(f"❌ Corrupted Excel test error: {str(e)}")
-            return False
-    
-    def test_missing_columns(self):
-        """Test bulk import with insufficient columns"""
-        print(f"\n📊 Testing Missing Columns...")
-        
-        try:
-            # Create Excel with only 5 columns (less than required 12)
-            headers = ['Col1', 'Col2', 'Col3', 'Col4', 'Col5']
-            data = [['Data1', 'Data2', 'Data3', 'Data4', 'Data5']]
-            
-            df = pd.DataFrame(data, columns=headers)
-            
-            output = io.BytesIO()
-            with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                df.to_excel(writer, index=False)
-            
-            output.seek(0)
-            
-            files = {
-                'file': ('insufficient_columns.xlsx', output.getvalue(), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-            }
-            
-            response = self.session.post(f"{BACKEND_URL}/customers/bulk-import", files=files)
-            
-            if response.status_code == 400:
-                print(f"✅ Insufficient columns correctly rejected")
-                return True
-            else:
-                print(f"❌ Insufficient columns should have been rejected (got {response.status_code})")
-                return False
-                
-        except Exception as e:
-            print(f"❌ Missing columns test error: {str(e)}")
-            return False
-    
-    def test_unauthorized_access(self):
-        """Test bulk import endpoints without proper authentication"""
-        print(f"\n🔒 Testing Unauthorized Access...")
-        
-        # Create a session without authentication
-        unauth_session = requests.Session()
-        
-        results = []
-        
-        # Test template download without auth
-        try:
-            response = unauth_session.get(f"{BACKEND_URL}/customers/bulk-import/template")
-            if response.status_code in [401, 403]:  # Both are valid for authentication failure
-                print("✅ Template download correctly requires authentication")
-                results.append(True)
-            else:
-                print(f"❌ Template download should require auth (got {response.status_code})")
-                results.append(False)
-        except Exception as e:
-            print(f"❌ Unauthorized template test error: {str(e)}")
-            results.append(False)
-        
-        # Test bulk import without auth
-        try:
-            excel_content = self.create_test_excel("valid")
-            files = {
-                'file': ('test.xlsx', excel_content, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-            }
-            
-            response = unauth_session.post(f"{BACKEND_URL}/customers/bulk-import", files=files)
-            if response.status_code in [401, 403]:  # Both are valid for authentication failure
-                print("✅ Bulk import correctly requires authentication")
-                results.append(True)
-            else:
-                print(f"❌ Bulk import should require auth (got {response.status_code})")
-                results.append(False)
-        except Exception as e:
-            print(f"❌ Unauthorized bulk import test error: {str(e)}")
-            results.append(False)
-        
-        return all(results)
-    
-    def run_all_tests(self):
-        """Run all bulk import tests"""
-        print("🚀 Starting RoyalCert Bulk Import System Tests")
-        print("=" * 60)
+        if existing_endpoints:
+            print(f"✅ Found {len(existing_endpoints)} existing report endpoints")
+            return True, existing_endpoints
+        else:
+            print("❌ No existing report endpoints found")
+            print("   Recommendation: Need to implement PDF report generation endpoints")
+            return False, []
+
+    def run_pdf_reporting_tests(self):
+        """Run all PDF reporting system tests"""
+        print("🚀 Starting RoyalCert PDF Reporting System Tests")
+        print("=" * 70)
         
         test_results = {}
         
@@ -501,44 +496,81 @@ class RoyalCertTester:
             print("\n❌ Cannot proceed without authentication")
             return test_results
         
-        # Template download test
-        test_results['template_download'] = self.test_template_download()
+        # User endpoints for inspector signatures
+        test_results['current_user_endpoint'] = self.test_current_user_endpoint()[0]
+        test_results['users_list_endpoint'] = self.test_users_list_endpoint()[0]
         
-        # Bulk import tests with different scenarios
-        test_results['bulk_import_valid'] = self.test_bulk_import("valid")
-        test_results['bulk_import_missing_mandatory'] = self.test_bulk_import("missing_mandatory")
-        test_results['bulk_import_empty_values'] = self.test_bulk_import("empty_values")
-        test_results['bulk_import_duplicate'] = self.test_bulk_import("duplicate")
+        # Customer data for PDF reports
+        test_results['customers_list_endpoint'] = self.test_customers_list_endpoint()[0]
         
-        # Error handling tests
-        test_results['invalid_file_formats'] = self.test_invalid_file_formats()
-        test_results['corrupted_excel'] = self.test_corrupted_excel()
-        test_results['missing_columns'] = self.test_missing_columns()
-        test_results['unauthorized_access'] = self.test_unauthorized_access()
+        # Equipment templates for form structure
+        test_results['equipment_templates_endpoint'] = self.test_equipment_templates_endpoint()[0]
+        
+        # Create test inspection for inspection endpoints
+        test_results['create_test_inspection'] = self.create_test_inspection()
+        
+        # Inspection data endpoints
+        if test_results['create_test_inspection']:
+            test_results['inspection_details_endpoint'] = self.test_inspection_details_endpoint()[0]
+            test_results['inspection_form_endpoint'] = self.test_inspection_form_endpoint()[0]
+        else:
+            test_results['inspection_details_endpoint'] = False
+            test_results['inspection_form_endpoint'] = False
+        
+        test_results['inspections_list_endpoint'] = self.test_inspections_list_endpoint()[0]
+        
+        # Backend dependencies and existing endpoints
+        test_results['backend_dependencies'] = self.check_backend_dependencies()[0]
+        test_results['existing_report_endpoints'] = self.test_existing_report_endpoints()[0]
         
         # Summary
-        print("\n" + "=" * 60)
-        print("📋 TEST SUMMARY")
-        print("=" * 60)
+        print("\n" + "=" * 70)
+        print("📋 PDF REPORTING SYSTEM TEST SUMMARY")
+        print("=" * 70)
         
         passed = 0
         total = len(test_results)
         
         for test_name, result in test_results.items():
             status = "✅ PASS" if result else "❌ FAIL"
-            print(f"{test_name.replace('_', ' ').title():<30} {status}")
+            print(f"{test_name.replace('_', ' ').title():<35} {status}")
             if result:
                 passed += 1
         
         print(f"\nOverall Result: {passed}/{total} tests passed")
         
-        if passed == total:
-            print("🎉 All tests passed! Bulk import system is working correctly.")
+        # PDF Reporting Implementation Recommendations
+        print("\n" + "=" * 70)
+        print("📝 PDF REPORTING IMPLEMENTATION RECOMMENDATIONS")
+        print("=" * 70)
+        
+        print("✅ AVAILABLE DATA FOR PDF GENERATION:")
+        print("   • Customer information (company, address, contact)")
+        print("   • Equipment details and templates")
+        print("   • Inspection data and form results")
+        print("   • User information for signatures")
+        print("   • Control items and categories")
+        
+        print("\n⚠️  MISSING COMPONENTS FOR PDF REPORTING:")
+        print("   • PDF generation library (recommend: reportlab or weasyprint)")
+        print("   • PDF report generation endpoints")
+        print("   • Report templates and formatting")
+        print("   • File storage/download mechanism")
+        
+        print("\n🔧 RECOMMENDED IMPLEMENTATION STEPS:")
+        print("   1. Add PDF library to requirements.txt")
+        print("   2. Create PDF report generation service")
+        print("   3. Implement /api/inspections/{id}/pdf endpoint")
+        print("   4. Add report templates for different equipment types")
+        print("   5. Include digital signatures and approval workflow")
+        
+        if passed >= 8:  # Most core endpoints working
+            print("\n🎉 Backend infrastructure is ready for PDF reporting implementation!")
         else:
-            print(f"⚠️  {total - passed} test(s) failed. Please review the issues above.")
+            print(f"\n⚠️  {total - passed} critical issue(s) need to be resolved first.")
         
         return test_results
 
 if __name__ == "__main__":
-    tester = RoyalCertTester()
-    results = tester.run_all_tests()
+    tester = RoyalCertPDFReportingTester()
+    results = tester.run_pdf_reporting_tests()

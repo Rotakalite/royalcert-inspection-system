@@ -285,10 +285,12 @@ const AdminDashboard = () => {
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                       user.role === 'admin' ? 'bg-red-100 text-red-800' :
                       user.role === 'planlama_uzmani' ? 'bg-blue-100 text-blue-800' :
+                      user.role === 'teknik_yonetici' ? 'bg-purple-100 text-purple-800' :
                       'bg-green-100 text-green-800'
                     }`}>
                       {user.role === 'admin' ? 'Admin' : 
-                       user.role === 'planlama_uzmani' ? 'Planlama Uzmanı' : 'Denetçi'}
+                       user.role === 'planlama_uzmani' ? 'Planlama Uzmanı' :
+                       user.role === 'teknik_yonetici' ? 'Teknik Yönetici' : 'Denetçi'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">

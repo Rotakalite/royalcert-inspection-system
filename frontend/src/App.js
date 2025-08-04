@@ -1945,7 +1945,7 @@ const CustomerManagement = ({ onBack }) => {
                     groupedEquipments[equipmentType] = {
                       equipment_type: equipmentType,
                       id: template.id, // Use first template's ID as reference
-                      description: `${equipmentType} ekipmanı için muayene sistemi`,
+                      description: equipmentType + " ekipmanı için muayene sistemi",
                       templates: []
                     };
                   }

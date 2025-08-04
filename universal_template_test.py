@@ -324,10 +324,14 @@ class UniversalTemplateParserTester:
         
         # Count from categories (backward compatibility)
         categories_items_count = 0
-        if categories:
+        if categories and isinstance(categories, list):
             for category in categories:
-                items = category.get('items', [])
-                categories_items_count += len(items)
+                if isinstance(category, dict):
+                    items = category.get('items', [])
+                    categories_items_count += len(items)
+        elif isinstance(categories, int):
+            # If categories is just a count, use it directly
+            categories_items_count = categories
         
         print(f"   Control items (universal): {control_items_count}")
         print(f"   Control items (categories): {categories_items_count}")

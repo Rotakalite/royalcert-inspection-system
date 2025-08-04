@@ -566,9 +566,8 @@ const AdminDashboard = () => {
   };
 
   const handleTemplateView = (template) => {
-    // TODO: Implement template view functionality
-    console.log('View template:', template);
-    alert(`${template.name} template'ini görüntüleme özelliği yakında eklenecek`);
+    setPreviewTemplate(template);
+    setShowTemplatePreview(true);
   };
 
   const handleTemplateEdit = (template) => {

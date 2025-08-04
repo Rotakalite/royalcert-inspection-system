@@ -1638,16 +1638,19 @@ async def upload_template_document(
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Only admins can upload templates")
     
-    # Validate file type
-    if not file.filename.endswith(('.docx', '.doc')):
-        raise HTTPException(status_code=400, detail="Only Word documents (.docx, .doc) are supported")
+    # Validate file type - NOW SUPPORTS PDF!
+    if not file.filename.endswith(('.docx', '.doc', '.pdf')):
+        raise HTTPException(status_code=400, detail="Only Word documents (.docx, .doc) and PDF files (.pdf) are supported")
     
     try:
         # Read file content
         file_content = await file.read()
         
-        # Parse Word document
-        template_data = parse_word_document(file_content, file.filename)
+        # Choose parser based on file type
+        if file.filename.endswith('.pdf'):
+            template_data = parse_pdf_document(file_content, file.filename)
+        else:
+            template_data = parse_word_document(file_content, file.filename)
         
         # DEBUG: Check what fields are in template_data
         print(f"DEBUG: template_data keys: {list(template_data.keys())}")

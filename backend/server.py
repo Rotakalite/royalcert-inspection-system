@@ -1279,34 +1279,68 @@ def parse_word_document(file_content: bytes, filename: str) -> dict:
         elif "FORM" in filename_upper:
             template_type = "FORM"
         
-        # Parse control items from text
+        # Parse control items from text - IMPROVED ALGORITHM
         control_items = []
         categories = {}
         
         # Look for numbered items (1., 2., 3., etc.) in text
-        item_pattern = r'(\d+)\.\s*([^\n]+)'
-        matches = re.findall(item_pattern, text)
+        item_pattern = r'^(\d+)\.\s*([^\n\r]+)'
+        matches = re.findall(item_pattern, text, re.MULTILINE)
         
-        current_category = 'A'
-        category_count = 0
-        
+        # Filter out invalid matches
+        valid_matches = []
         for match in matches:
             item_number = int(match[0])
             item_text = match[1].strip()
             
-            # Skip if item text is too short or contains only symbols
-            if len(item_text) < 5 or item_text in ['D', 'U', 'UD', 'U.Y']:
+            # Skip if item number is too high (max 60 for any equipment)
+            if item_number > 60:
                 continue
+                
+            # Skip if item text is too short or contains only symbols
+            if len(item_text) < 10:
+                continue
+                
+            # Skip if text contains only control values or common headers
+            skip_patterns = ['D', 'U', 'UD', 'U.Y', 'GENEL', 'BİLGİLER', 'MUAYENE', 'TEST', 
+                           'KONTROL', 'ETİKET', 'BAŞLIK', 'TABLE', 'FORM', 'RAPOR']
+            if any(pattern in item_text.upper() for pattern in skip_patterns):
+                continue
+                
+            # Skip if text is repetitive or contains only numbers/symbols
+            if len(set(item_text.replace(' ', ''))) < 5:  # Too repetitive
+                continue
+                
+            valid_matches.append((item_number, item_text))
+        
+        # Sort by item number and take only reasonable amount
+        valid_matches.sort(key=lambda x: x[0])
+        
+        # Limit to maximum 60 control items (reasonable for any equipment)
+        if len(valid_matches) > 60:
+            valid_matches = valid_matches[:60]
+        
+        current_category = 'A'
+        
+        for match in valid_matches:
+            item_number = int(match[0])
+            item_text = match[1].strip()
             
-            # Determine category (A-H, roughly 6-7 items per category)
-            if item_number <= 12:
-                current_category = 'A' if item_number <= 6 else 'B'
+            # Determine category (A-H, roughly 7-8 items per category)
+            if item_number <= 8:
+                current_category = 'A'
+            elif item_number <= 16:
+                current_category = 'B'
             elif item_number <= 24:
-                current_category = 'C' if item_number <= 18 else 'D'
-            elif item_number <= 36:
-                current_category = 'E' if item_number <= 30 else 'F'
+                current_category = 'C'
+            elif item_number <= 32:
+                current_category = 'D'
+            elif item_number <= 40:
+                current_category = 'E'
             elif item_number <= 48:
-                current_category = 'G' if item_number <= 42 else 'H'
+                current_category = 'F'
+            elif item_number <= 56:
+                current_category = 'G'
             else:
                 current_category = 'H'
             

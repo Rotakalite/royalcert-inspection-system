@@ -522,6 +522,7 @@ const CustomerManagement = ({ onBack }) => {
   const [customers, setCustomers] = useState([]);
   const [equipmentTemplates, setEquipmentTemplates] = useState([]);
   const [showForm, setShowForm] = useState(false);
+  const [showBulkImport, setShowBulkImport] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({

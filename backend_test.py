@@ -1509,7 +1509,14 @@ class CriticalParsingAlgorithmTester:
                 categories = template_data.get('categories', [])
                 
                 # CRITICAL COUNT: Calculate total control items
-                total_control_items = sum(len(cat.get('items', [])) for cat in categories)
+                total_control_items = 0
+                for cat in categories:
+                    items = cat.get('items', [])
+                    if isinstance(items, list):
+                        total_control_items += len(items)
+                    else:
+                        print(f"   ⚠️  Warning: Category {cat.get('code', 'UNKNOWN')} has non-list items: {type(items)}")
+                        total_control_items += 1 if items else 0
                 
                 print(f"\n📊 PARSING RESULTS:")
                 print(f"   Equipment Type: {equipment_type}")

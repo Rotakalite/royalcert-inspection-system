@@ -111,10 +111,12 @@ const LoginPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-royal-50 to-royal-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-            <svg className="w-8 h-8 text-red-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
+          <div className="mx-auto w-20 h-20 mb-4 flex items-center justify-center">
+            <img 
+              src="https://customer-assets.emergentagent.com/job_yeni-yazilim/artifacts/7675i2kn_WhatsApp%20G%C3%B6rsel%202025-08-04%20saat%2012.57.00_7b510c6c.jpg"
+              alt="RoyalCert Logo"
+              className="w-full h-full object-contain"
+            />
           </div>
           <h2 className="text-2xl font-bold text-royal-900">RoyalCert</h2>
           <p className="text-royal-600 mt-2">Belgelendirme ve Gözetim Hizmetleri</p>

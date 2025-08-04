@@ -1,6 +1,7 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import TemplateBuilderModal from './components/TemplateBuilderModal';
 import SimpleTemplateBuilder from './components/SimpleTemplateBuilder';
+import TemplatePreviewModal from './components/TemplatePreviewModal';
 import axios from 'axios';
 import './App.css';
 

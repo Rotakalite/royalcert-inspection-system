@@ -1305,6 +1305,21 @@ const AdminDashboard = () => {
             />
           )}
 
+          {/* Template Upload Modal */}
+          {showUploadModal && (
+            <TemplateUploadModal
+              onClose={() => {
+                setShowUploadModal(false);
+                setSelectedFiles([]);
+              }}
+              selectedFiles={selectedFiles}
+              onFileSelect={handleFileSelect}
+              onSingleUpload={handleSingleTemplateUpload}
+              onBulkUpload={handleBulkTemplateUpload}
+              uploading={uploadingTemplate}
+            />
+          )}
+
           {/* Template List */}
           <div className="bg-white rounded-xl shadow-sm">
             <div className="px-6 py-4 border-b border-gray-200">

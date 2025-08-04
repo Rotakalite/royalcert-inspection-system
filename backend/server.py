@@ -1760,7 +1760,323 @@ async def fix_orphaned_inspector_ids(current_user: User = Depends(get_current_us
         print(f"Data fix error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Data fix failed: {str(e)}")
 
-# ===================== HEALTH CHECK =====================
+# ===================== UNIVERSAL TEMPLATE PARSERS =====================
+
+def extract_general_info(text: str, tables: list) -> dict:
+    """Extract general information fields from template"""
+    general_info = {
+        "firma_adi": {"label": "Firma Adı", "value": "", "type": "text", "from_system": True},
+        "telefon": {"label": "Telefon", "value": "", "type": "text", "from_system": True},
+        "muayene_adresi": {"label": "Muayene Adresi", "value": "", "type": "text", "from_system": True},
+        "eposta": {"label": "E-posta", "value": "", "type": "email", "from_system": True},
+        "periyodik_kontrol_tarihi": {"label": "Periyodik Kontrol Tarihi", "value": "", "type": "date", "from_system": False},
+        "takip_kontrol_tarihi": {"label": "Takip Kontrol Tarihi", "value": "", "type": "date", "from_system": False},
+        "sonraki_kontrol_tarihi": {"label": "Bir Sonraki Periyodik Kontrol Tarihi", "value": "", "type": "date", "from_system": False},
+        "rapor_tarihi": {"label": "Rapor Tarihi", "value": "", "type": "date", "from_system": True},
+        "rapor_no": {"label": "Rapor No", "value": "", "type": "text", "from_system": True},
+        "kontrol_baslangic_saati": {"label": "Kontrol Başlangıç Saati", "value": "", "type": "time", "from_system": False},
+        "kontrol_bitis_saati": {"label": "Kontrol Bitiş Saati", "value": "", "type": "time", "from_system": False},
+        "isg_katip_sozlesme_id": {"label": "İSG-Kâtip Sözleşme ID", "value": "", "type": "text", "from_system": False},
+        "isyeri_sgk_sicil_no": {"label": "İşyeri SGK Sicil No", "value": "", "type": "text", "from_system": False},
+        "kontrol_metodu": {"label": "Periyodik Kontrol Metodu", "value": "", "type": "textarea", "from_system": False}
+    }
+    
+    print("DEBUG: Extracted general info fields")
+    return general_info
+
+def extract_measurement_devices(text: str, tables: list) -> dict:
+    """Extract measurement devices and equipment info"""
+    measurement_devices = {
+        "fields": [
+            {"label": "Cihaz Adı", "type": "text", "from_system": False},
+            {"label": "Cihaz Markası", "type": "text", "from_system": False},
+            {"label": "Cihaz Kodu/Seri No", "type": "text", "from_system": False},
+            {"label": "Kalibrasyon Tarihi", "type": "date", "from_system": False}
+        ],
+        "rows": []  # Will be filled dynamically in frontend
+    }
+    
+    print("DEBUG: Extracted measurement devices structure")
+    return measurement_devices
+
+def extract_equipment_info(text: str, tables: list, equipment_type: str) -> dict:
+    """Extract equipment-specific information fields"""
+    # Base equipment info fields
+    equipment_info = {
+        "markasi": {"label": "Markası", "value": "", "type": "text", "from_system": True},
+        "tipi_modeli": {"label": "Tipi/Modeli", "value": "", "type": "text", "from_system": True},
+        "seri_no": {"label": "Seri No", "value": "", "type": "text", "from_system": True},
+        "imal_yili": {"label": "İmal Yılı", "value": "", "type": "number", "from_system": True},
+        "kullanim_yeri": {"label": "Kullanım Yeri / Amacı", "value": "", "type": "text", "from_system": False},
+    }
+    
+    # Equipment-specific fields based on type
+    if equipment_type == "FORKLIFT":
+        equipment_info.update({
+            "yakit_turu": {"label": "Yakıt Türü", "value": "", "type": "select", "options": ["Dizel", "LPG", "Elektrikli"], "from_system": False},
+            "kaldirma_kapasitesi": {"label": "Kaldırma Kapasitesi (kg)", "value": "", "type": "number", "from_system": True},
+            "kaldirma_yuksekligi": {"label": "Kaldırma Yüksekliği (mm)", "value": "", "type": "number", "from_system": True},
+            "catal_uzunlugu": {"label": "Çatal Kollarının Uzunluğu (mm)", "value": "", "type": "number", "from_system": False},
+            "catal_genisligi": {"label": "Çatal Kollarının Genişliği (mm)", "value": "", "type": "number", "from_system": False},
+            "yuk_merkezi_mesafesi": {"label": "Yük Merkezi Mesafesi (mm)", "value": "", "type": "number", "from_system": True},
+            "tekerlek_tipi": {"label": "Tekerlek Tipi", "value": "", "type": "text", "from_system": False},
+            "forklift_tipi": {"label": "Forklift Tipi", "value": "", "type": "radio", "options": ["İçten Yanmalı", "Akülü"], "from_system": False}
+        })
+    
+    print(f"DEBUG: Extracted {equipment_type} equipment info fields")
+    return equipment_info
+
+def extract_test_values(text: str, tables: list) -> dict:
+    """Extract test values and measurements"""
+    test_values = {
+        "yillik_test_tarihi": {"label": "Azami Yılda Bir Yapılan Son Test Tarihi", "value": "", "type": "date", "from_system": False},
+        "uc_yillik_test_tarihi": {"label": "Azami Üç Yılda Bir Yapılan Son Test Tarihi", "value": "", "type": "date", "from_system": False},
+        "statik_test_yuku": {"label": "Statik Test Yükü (Kg)", "value": "", "type": "number", "from_system": False},
+        "dinamik_test_yuku": {"label": "Dinamik Test Yükü (Kg)", "value": "", "type": "number", "from_system": False},
+        "test_yuku": {"label": "Test Yükü (Kg)", "value": "", "type": "number", "from_system": False}
+    }
+    
+    print("DEBUG: Extracted test values fields")
+    return test_values
+
+def extract_control_items(text: str, tables: list) -> list:
+    """Extract control/inspection items with improved parsing"""
+    print("DEBUG: Starting control items extraction...")
+    
+    control_items = []
+    
+    # Look for numbered items (1., 2., 3., etc.) in text - BETTER PATTERN
+    item_pattern = r'^(\d+)\.\s*(.+)$'
+    matches = re.findall(item_pattern, text, re.MULTILINE)
+    
+    # Smart filtering to get REAL control items only
+    valid_matches = []
+    seen_texts = set()  # Prevent duplicates
+    
+    for match in matches:
+        item_number = int(match[0])
+        item_text = match[1].strip()
+        
+        # Skip if item number is unreasonable (but not too restrictive)
+        if item_number < 1 or item_number > 100:  # Allow up to 100 for complex equipment
+            continue
+            
+        # Skip if item text is too short (real control items are descriptive)
+        if len(item_text) < 15:  # Real control items are at least 15 chars
+            continue
+            
+        # Skip common headers and non-control text (SMART FILTERING)
+        skip_patterns = [
+            'GENEL', 'BİLGİLER', 'MUAYENE', 'KONTROL', 'ETİKET', 'TEST', 'FORM', 'RAPOR', 
+            'BAŞLIK', 'TABLE', 'DEĞER', 'DURUM', 'TARİH', 'NO', 'ADI', 'KODU', 'MARKASı',
+            'TİPİ', 'SERİ', 'İMAL', 'YIL', 'KAPASITE', 'YÜKSEKLIK', 'MESAFE', 'ÖLÇÜM',
+            'DEĞERLENDİRME', 'AÇIKLAMA', 'NOT'
+        ]
+        
+        # Skip if item text is primarily a header/label
+        if any(pattern in item_text.upper() for pattern in skip_patterns):
+            continue
+            
+        # Skip if text contains primarily numbers/codes/values (not control descriptions)  
+        if re.search(r'^\d+[.\-/\s]*\d*$', item_text.strip()):
+            continue
+            
+        # Skip repetitive or too similar texts
+        text_key = re.sub(r'\s+', ' ', item_text.lower())
+        if text_key in seen_texts:
+            continue
+        seen_texts.add(text_key)
+        
+        # Skip if text is primarily symbols or formatting
+        if len(re.sub(r'[^a-zA-ZğüşıöçĞÜŞİÖÇ]', '', item_text)) < 10:
+            continue
+        
+        # This looks like a REAL control item!
+        valid_matches.append((item_number, item_text))
+    
+    # Sort by item number (preserve original order)
+    valid_matches.sort(key=lambda x: x[0])
+    
+    print(f"DEBUG: Found {len(valid_matches)} valid control items after smart filtering")
+    
+    current_category = 'A'
+    
+    for match in valid_matches:
+        item_number = int(match[0])
+        item_text = match[1].strip()
+        
+        # Smart category determination based on typical equipment inspection structure
+        if item_number <= 12:
+            current_category = 'A'  # Usually control/cabin systems
+        elif item_number <= 20:
+            current_category = 'B'  # Usually movement/drive systems  
+        elif item_number <= 27:
+            current_category = 'C'  # Usually indicators/warnings
+        elif item_number <= 35:
+            current_category = 'D'  # Usually braking systems
+        elif item_number <= 42:
+            current_category = 'E'  # Usually lifting/chains
+        elif item_number <= 48:
+            current_category = 'F'  # Usually forks/attachments
+        elif item_number <= 55:
+            current_category = 'G'  # Usually fuel/emissions
+        else:
+            current_category = 'H'  # Usually other controls/safety
+        
+        control_items.append({
+            "id": item_number,
+            "text": item_text,
+            "category": current_category,
+            "has_dropdown": True,  # All items have U/UD/U.Y dropdown
+            "has_comment": True,   # All items have comment field
+            "has_photo": True      # All items can have photos
+        })
+
+    # FALLBACK: If no numbered items found, try smarter table parsing
+    if not control_items and tables:
+        print("DEBUG: No numbered items found, trying smart table parsing...")
+        item_id = 1
+        seen_texts = set()
+        
+        for table in tables:
+            for row in table:
+                for cell_text in row:
+                    # Smart table cell filtering for REAL control items
+                    if (len(cell_text) > 20 and len(cell_text) < 300 and  # Reasonable length
+                        not any(x in cell_text.upper() for x in ['GENEL', 'BİLGİLER', 'MUAYENE', 'TEST', 'ETİKET', 
+                                                                 'KONTROL', 'FORM', 'RAPOR', 'TABLE', 'BAŞLIK',
+                                                                 'NO', 'ADI', 'KODU', 'DURUM', 'TARİH']) and
+                        not cell_text.upper().strip() in ['D', 'U', 'UD', 'U.Y'] and
+                        cell_text.count('.') < 5 and  # Avoid dotted number sequences
+                        len(re.sub(r'[^a-zA-ZğüşıöçĞÜŞİÖÇ]', '', cell_text)) > 15):  # Has enough letters
+                        
+                        # Check for duplicates
+                        text_key = re.sub(r'\s+', ' ', cell_text.lower().strip())
+                        if text_key not in seen_texts:
+                            seen_texts.add(text_key)
+                            
+                            # Smart category assignment
+                            if item_id <= 12:
+                                current_category = 'A'
+                            elif item_id <= 20:
+                                current_category = 'B'
+                            elif item_id <= 27:
+                                current_category = 'C'
+                            elif item_id <= 35:
+                                current_category = 'D'
+                            elif item_id <= 42:
+                                current_category = 'E'
+                            elif item_id <= 48:
+                                current_category = 'F'
+                            elif item_id <= 55:
+                                current_category = 'G'
+                            else:
+                                current_category = 'H'
+                            
+                            control_items.append({
+                                "id": item_id,
+                                "text": cell_text.strip(),
+                                "category": current_category,
+                                "has_dropdown": True,
+                                "has_comment": True,
+                                "has_photo": True
+                            })
+                            item_id += 1
+                            
+                            # Reasonable limit - but not too restrictive
+                            if item_id > 80:  # Allow up to 80 for complex equipment
+                                break
+        
+        print(f"DEBUG: Table parsing found {len(control_items)} control items")
+    
+    return control_items
+
+def extract_test_experiments(text: str, tables: list) -> list:
+    """Extract test, experiment and examination items"""
+    test_experiments = []
+    
+    # Look for test items (usually 51-53 for Forklift)
+    test_pattern = r'(5[1-9]|[6-9]\d)\.\s*(.+)'
+    matches = re.findall(test_pattern, text, re.MULTILINE)
+    
+    for match in matches:
+        item_number = int(match[0])
+        item_text = match[1].strip()
+        
+        if len(item_text) > 10:  # Valid test item
+            test_experiments.append({
+                "id": item_number,
+                "text": item_text,
+                "type": "test_measurement",
+                "has_value": True,
+                "has_comment": True
+            })
+    
+    print(f"DEBUG: Extracted {len(test_experiments)} test experiment items")
+    return test_experiments
+
+def extract_defect_explanations(text: str, tables: list) -> dict:
+    """Extract defect explanations section"""
+    defect_explanations = {
+        "label": "Kusur Açıklamaları",
+        "value": "",
+        "type": "textarea",
+        "rows": 5,
+        "from_system": False
+    }
+    
+    print("DEBUG: Extracted defect explanations section")
+    return defect_explanations
+
+def extract_notes_section(text: str, tables: list) -> dict:
+    """Extract notes section"""
+    notes = {
+        "label": "Notlar",
+        "value": "",
+        "type": "textarea", 
+        "rows": 5,
+        "from_system": False
+    }
+    
+    print("DEBUG: Extracted notes section")
+    return notes
+
+def extract_result_opinion(text: str, tables: list) -> dict:
+    """Extract result and opinion section"""
+    result_opinion = {
+        "label": "Yukarıda teknik özellikleri belirtilen ekipmanın kullanılması",
+        "value": "",
+        "type": "radio",
+        "options": ["UYGUNDUR", "SAKINCALIDIR"],
+        "from_system": False
+    }
+    
+    print("DEBUG: Extracted result opinion section")
+    return result_opinion
+
+def extract_inspector_info(text: str, tables: list) -> dict:
+    """Extract inspector information fields"""
+    inspector_info = {
+        "adi_soyadi": {"label": "Adı Soyadı", "value": "", "type": "text", "from_system": True},
+        "unvani": {"label": "Ünvanı", "value": "", "type": "text", "from_system": True},
+        "imza": {"label": "İmza", "value": "", "type": "signature", "from_system": False}
+    }
+    
+    print("DEBUG: Extracted inspector info fields")
+    return inspector_info
+
+def extract_company_official(text: str, tables: list) -> dict:
+    """Extract company official information fields"""
+    company_official = {
+        "adi_soyadi": {"label": "Adı Soyadı", "value": "", "type": "text", "from_system": True},
+        "gorevi": {"label": "Görevi", "value": "", "type": "text", "from_system": True},
+        "imza": {"label": "İmza", "value": "", "type": "signature", "from_system": False}
+    }
+    
+    print("DEBUG: Extracted company official fields")
+    return company_official
+
+# ===================== END UNIVERSAL PARSERS =====================
 
 @app.get("/api/health")
 async def health_check():

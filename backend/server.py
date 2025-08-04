@@ -1677,6 +1677,143 @@ def parse_pdf_document(file_content: bytes, filename: str) -> dict:
     
     return template_data
 
+def parse_pdf_document_dynamic(file_content: bytes, filename: str) -> dict:
+    """DYNAMIC PDF parser - Formda ne varsa o! Hiçbir sınır yok!"""
+    
+    print(f"DEBUG: Starting DYNAMIC PDF parsing for {filename}")
+    
+    # Equipment type - daha geniş tanıma
+    filename_upper = filename.upper()
+    equipment_type = "UNKNOWN"
+    
+    # Daha kapsamlı equipment type detection
+    equipment_keywords = {
+        "FORKLIFT": ["FORKLIFT", "FORK", "LİFT"],
+        "CARASKAL": ["CARASKAL", "CARAS", "ASKAL"],
+        "ISKELE": ["ISKELE", "İSKELE", "SCAFF"],  
+        "VINC": ["VINC", "VİNÇ", "CRANE", "KRİK"],
+        "ASANSÖR": ["ASANSÖR", "ASANSOR", "ELEVATöR", "LIFT"],
+        "PLATFORM": ["PLATFORM", "PLATFORMU"],
+        "KOMPRESÖR": ["KOMPRESÖR", "KOMPRESOR", "COMPRESSOR"],
+        "JENERATÖR": ["JENERATÖR", "GENERATOR", "GENERATöR"]
+    }
+    
+    for eq_type, keywords in equipment_keywords.items():
+        if any(keyword in filename_upper for keyword in keywords):
+            equipment_type = eq_type
+            break
+    
+    # Template type
+    template_type = "REPORT" if any(word in filename_upper for word in ["RAPOR", "REPORT"]) else "FORM"
+    template_name = f"{equipment_type} MUAYENE {'RAPORU' if template_type == 'REPORT' else 'FORMU'}"
+    
+    # Extract ALL text from PDF - NO FILTERING!
+    text_content = ""
+    try:
+        # Method 1: pdfplumber (en iyi table extraction)
+        try:
+            with pdfplumber.open(io.BytesIO(file_content)) as pdf:
+                for page_num, page in enumerate(pdf.pages, 1):
+                    print(f"DEBUG: Processing page {page_num}")
+                    
+                    # Text extraction
+                    page_text = page.extract_text()
+                    if page_text:
+                        text_content += f"\n--- PAGE {page_num} ---\n"
+                        text_content += page_text + "\n"
+                    
+                    # Table extraction - BÜTÜN TABLOLAR!
+                    tables = page.extract_tables()
+                    for table_num, table in enumerate(tables, 1):
+                        print(f"DEBUG: Processing table {table_num} on page {page_num}")
+                        text_content += f"\n--- TABLE {table_num} ON PAGE {page_num} ---\n"
+                        for row_num, row in enumerate(table):
+                            if row:
+                                # Her satırı text olarak ekle
+                                row_text = " | ".join([str(cell).strip() if cell else "" for cell in row])
+                                if row_text.strip():
+                                    text_content += f"ROW{row_num}: {row_text}\n"
+                    
+                    print(f"DEBUG: Page {page_num} - Text: {len(page_text or '')} chars, Tables: {len(tables)}")
+            
+            print(f"DEBUG: pdfplumber total extracted: {len(text_content)} characters")
+        
+        except Exception as e:
+            print(f"DEBUG: pdfplumber failed: {e}, trying PyPDF2")
+            
+            # Fallback: PyPDF2
+            pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_content))
+            for page_num, page in enumerate(pdf_reader.pages, 1):
+                page_text = page.extract_text()
+                if page_text:
+                    text_content += f"\n--- PAGE {page_num} ---\n"
+                    text_content += page_text + "\n"
+            
+            print(f"DEBUG: PyPDF2 total extracted: {len(text_content)} characters")
+    
+    except Exception as e:
+        print(f"ERROR: PDF parsing completely failed: {e}")
+        text_content = f"ERROR: Could not extract text from PDF: {str(e)}"
+    
+    # UNIVERSAL TEMPLATE STRUCTURE - DYNAMIC PARSING
+    template_structure = {
+        "general_info": {},
+        "measurement_devices": [],
+        "equipment_info": {},
+        "test_values": {},
+        "control_items": [],
+        "categories": [],
+        "categories_dict": {},
+        "test_experiments": [],
+        "defect_explanations": "",
+        "notes": "",
+        "result_opinion": "",
+        "inspector_info": {},
+        "company_official": {}
+    }
+    
+    # Create template name based on equipment type and template type
+    if template_type == "REPORT":
+        template_name = f"{equipment_type} MUAYENE RAPORU"
+        description = f"{equipment_type} ekipmanı için otomatik PDF rapor template'i"
+    else:
+        template_name = f"{equipment_type} MUAYENE FORMU"
+        description = f"{equipment_type} ekipmanı için denetim kontrol formu"
+    
+    template_data = {
+        "name": template_name,
+        "equipment_type": equipment_type,
+        "template_type": template_type,
+        "description": description,
+        "parsed_from": filename,
+        "parse_date": datetime.utcnow(),
+        "is_active": True,
+        
+        # UNIVERSAL TEMPLATE STRUCTURE
+        "general_info": template_structure["general_info"],
+        "measurement_devices": template_structure["measurement_devices"],
+        "equipment_info": template_structure["equipment_info"],
+        "test_values": template_structure["test_values"],
+        "control_items": template_structure["control_items"],
+        "categories": template_structure["categories"],  # Backward compatible list format
+        "categories_dict": template_structure["categories_dict"],  # New dict format
+        "test_experiments": template_structure["test_experiments"],
+        "defect_explanations": template_structure["defect_explanations"],
+        "notes": template_structure["notes"],
+        "result_opinion": template_structure["result_opinion"],
+        "inspector_info": template_structure["inspector_info"],
+        "company_official": template_structure["company_official"],
+        "total_items": len(template_structure["control_items"]),
+        
+        # Raw extracted text for debugging
+        "raw_text": text_content[:1000] + "..." if len(text_content) > 1000 else text_content,
+        "text_length": len(text_content)
+    }
+    
+    print(f"DEBUG: Created template for {equipment_type} with {len(template_structure['control_items'])} items")
+    
+    return template_data
+
 @app.post("/api/equipment-templates/upload")
 async def upload_template_document(
     file: UploadFile = File(...),

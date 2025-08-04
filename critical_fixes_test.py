@@ -421,7 +421,7 @@ class CriticalFixesTester:
                     test_template = None
                     
                     for template in templates:
-                        if template.get('equipment_type') == 'TEST_EQUIPMENT':
+                        if template.get('equipment_type').startswith('TEST_EQUIPMENT_'):
                             test_template = template
                             break
                     

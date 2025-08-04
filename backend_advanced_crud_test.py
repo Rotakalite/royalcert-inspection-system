@@ -14,7 +14,7 @@ from pymongo import MongoClient
 import os
 
 # Configuration
-BACKEND_URL = "https://405a5b7a-3c02-4793-9fcc-5203d2944620.preview.emergentagent.com/api"
+BACKEND_URL = "https://eba81ca4-6566-454a-8283-f31f83336333.preview.emergentagent.com/api"
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "admin123"
 

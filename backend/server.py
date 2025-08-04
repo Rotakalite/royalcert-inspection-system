@@ -1307,7 +1307,8 @@ def parse_word_document(file_content: bytes, filename: str) -> dict:
             "equipment_info": template_structure["equipment_info"],
             "test_values": template_structure["test_values"],
             "control_items": template_structure["control_items"],
-            "categories": template_structure["categories"],
+            "categories": template_structure["categories"],  # Backward compatible list format
+            "categories_dict": template_structure["categories_dict"],  # New dict format
             "test_experiments": template_structure["test_experiments"],
             "defect_explanations": template_structure["defect_explanations"],
             "notes": template_structure["notes"],

@@ -1936,31 +1936,319 @@ class FinalControlCriteriaTester:
         else:
             return False
 
+class TableIterationFixTester:
+    """
+    SON TEST: Table iteration hatası düzeltildi - 49/49 kontrol kriteri yakalanıyor mu?
+    Tests if the table iteration fix now captures exactly 49 control criteria from Word document
+    """
+    def __init__(self):
+        self.session = requests.Session()
+        self.token = None
+        self.user_info = None
+        
+    def authenticate(self):
+        """Authenticate with admin credentials"""
+        print("🔐 Testing Authentication...")
+        
+        login_data = {
+            "username": ADMIN_USERNAME,
+            "password": ADMIN_PASSWORD
+        }
+        
+        try:
+            response = self.session.post(f"{BACKEND_URL}/auth/login", json=login_data)
+            print(f"Login Response Status: {response.status_code}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.token = data["access_token"]
+                self.user_info = data["user"]
+                
+                # Set authorization header for future requests
+                self.session.headers.update({
+                    "Authorization": f"Bearer {self.token}"
+                })
+                
+                print(f"✅ Authentication successful")
+                print(f"   User: {self.user_info['full_name']} ({self.user_info['role']})")
+                return True
+            else:
+                print(f"❌ Authentication failed: {response.text}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Authentication error: {str(e)}")
+            return False
+
+    def clean_existing_forklift_templates(self):
+        """Clean existing FORKLIFT templates for fresh test"""
+        print("\n🧹 Cleaning Existing FORKLIFT Templates...")
+        
+        try:
+            response = self.session.get(f"{BACKEND_URL}/equipment-templates")
+            if response.status_code == 200:
+                templates_data = response.json()
+                forklift_templates = [t for t in templates_data if t.get('equipment_type') == 'FORKLIFT']
+                
+                deleted_count = 0
+                for template in forklift_templates:
+                    template_id = template.get('id')
+                    template_name = template.get('name', 'UNNAMED')
+                    
+                    delete_response = self.session.delete(f"{BACKEND_URL}/equipment-templates/{template_id}")
+                    if delete_response.status_code == 200:
+                        print(f"✅ Deleted template: {template_name}")
+                        deleted_count += 1
+                    else:
+                        print(f"❌ Failed to delete template {template_name}")
+                
+                print(f"✅ Cleaned {deleted_count} FORKLIFT templates")
+                return True
+            else:
+                print(f"❌ Failed to get templates: {response.text}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Clean templates error: {str(e)}")
+            return False
+
+    def test_49_control_criteria_capture(self):
+        """Test if exactly 49 control criteria are captured from FORKLIFT MUAYENE FORMU"""
+        print("\n🎯 Testing 49/49 Control Criteria Capture...")
+        
+        # FORKLIFT MUAYENE FORMU document URL
+        doc_url = "https://customer-assets.emergentagent.com/job_periodic-check/artifacts/y9b9lejo_RC-M-%C4%B0E-FR24_5%20FORKL%C4%B0FT%20MUAYENE%20FORMU.docx"
+        
+        try:
+            # Download the document
+            print(f"   Downloading FORKLIFT MUAYENE FORMU...")
+            doc_response = requests.get(doc_url)
+            
+            if doc_response.status_code != 200:
+                print(f"❌ Failed to download document: {doc_response.status_code}")
+                return False, None
+            
+            print(f"✅ Document downloaded ({len(doc_response.content)} bytes)")
+            
+            # Prepare file for upload
+            filename = 'FORKLIFT MUAYENE FORMU.docx'
+            files = {
+                'file': (filename, doc_response.content, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+            }
+            
+            # Upload the document
+            print(f"   Uploading to POST /api/equipment-templates/upload...")
+            upload_response = self.session.post(f"{BACKEND_URL}/equipment-templates/upload", files=files)
+            
+            print(f"Upload Response Status: {upload_response.status_code}")
+            
+            if upload_response.status_code == 200:
+                upload_data = upload_response.json()
+                print("✅ Document uploaded and parsed successfully")
+                
+                # Extract parsing results
+                template_data = upload_data.get('template', {})
+                equipment_type = template_data.get('equipment_type', 'UNKNOWN')
+                template_type = template_data.get('template_type', 'UNKNOWN')
+                template_name = template_data.get('name', 'UNNAMED')
+                categories = template_data.get('categories', [])
+                
+                # Count total control items
+                total_items = sum(len(cat.get('items', [])) for cat in categories)
+                
+                print(f"\n📊 PARSING RESULTS:")
+                print(f"   Equipment Type: {equipment_type}")
+                print(f"   Template Type: {template_type}")
+                print(f"   Template Name: {template_name}")
+                print(f"   Total Categories: {len(categories)}")
+                print(f"   Total Control Items: {total_items}")
+                
+                # Check category distribution
+                print(f"\n📋 Category Distribution:")
+                category_distribution = {}
+                for category in categories:
+                    cat_code = category.get('code', 'UNKNOWN')
+                    cat_name = category.get('name', 'UNNAMED')
+                    cat_items = len(category.get('items', []))
+                    category_distribution[cat_code] = cat_items
+                    print(f"     {cat_code}: {cat_name} ({cat_items} items)")
+                
+                # CRITICAL TEST: Check if exactly 49 items are captured
+                print(f"\n🎯 CRITICAL TEST RESULTS:")
+                print(f"   Expected: 49 control criteria")
+                print(f"   Actual: {total_items} control criteria")
+                
+                if total_items == 49:
+                    print(f"   ✅ SUCCESS: Exactly 49/49 control criteria captured!")
+                    exact_match = True
+                else:
+                    print(f"   ❌ FAILURE: {total_items}/49 control criteria captured (missing {49 - total_items})")
+                    exact_match = False
+                
+                # Check for specific missing items (17, 20, 21, 50 should be missing according to previous test)
+                print(f"\n🔍 Checking for Expected Missing Items:")
+                all_item_ids = []
+                for category in categories:
+                    for item in category.get('items', []):
+                        item_id = item.get('id')
+                        if item_id:
+                            all_item_ids.append(item_id)
+                
+                all_item_ids.sort()
+                expected_missing = [17, 20, 21, 50]  # Based on previous test results
+                
+                print(f"   All captured item IDs: {all_item_ids}")
+                print(f"   Expected missing items: {expected_missing}")
+                
+                actually_missing = []
+                incorrectly_found = []
+                
+                for expected_missing_id in expected_missing:
+                    if expected_missing_id not in all_item_ids:
+                        actually_missing.append(expected_missing_id)
+                        print(f"     ✅ Item {expected_missing_id}: Correctly missing")
+                    else:
+                        incorrectly_found.append(expected_missing_id)
+                        print(f"     ❌ Item {expected_missing_id}: Should be missing but found!")
+                
+                # Check if we have items 1-53 range
+                expected_range = list(range(1, 54))  # 1 to 53
+                items_in_range = [item_id for item_id in all_item_ids if 1 <= item_id <= 53]
+                
+                print(f"\n📊 Item Range Analysis:")
+                print(f"   Expected range: 1-53 ({len(expected_range)} items)")
+                print(f"   Items in range: {len(items_in_range)}")
+                print(f"   Items outside range: {len(all_item_ids) - len(items_in_range)}")
+                
+                # Final assessment
+                table_iteration_fixed = (
+                    equipment_type == 'FORKLIFT' and
+                    template_type == 'FORM' and
+                    total_items == 49 and
+                    len(actually_missing) == len(expected_missing) and
+                    len(incorrectly_found) == 0
+                )
+                
+                result_data = {
+                    'equipment_type': equipment_type,
+                    'template_type': template_type,
+                    'template_name': template_name,
+                    'total_items': total_items,
+                    'exact_49_match': total_items == 49,
+                    'category_distribution': category_distribution,
+                    'all_item_ids': all_item_ids,
+                    'expected_missing': expected_missing,
+                    'actually_missing': actually_missing,
+                    'incorrectly_found': incorrectly_found,
+                    'table_iteration_fixed': table_iteration_fixed
+                }
+                
+                return True, result_data
+            else:
+                print(f"❌ Document upload failed: {upload_response.text}")
+                return False, None
+                
+        except Exception as e:
+            print(f"❌ Test error: {str(e)}")
+            return False, None
+
+    def run_table_iteration_fix_test(self):
+        """Run the complete table iteration fix test"""
+        print("🚀 Starting Table Iteration Fix Test - 49/49 Control Criteria")
+        print("=" * 80)
+        
+        test_results = {}
+        
+        # Step 1: Authentication
+        test_results['authentication'] = self.authenticate()
+        if not test_results['authentication']:
+            print("\n❌ Cannot proceed without authentication")
+            return test_results
+        
+        # Step 2: Clean existing templates
+        test_results['clean_templates'] = self.clean_existing_forklift_templates()
+        
+        # Step 3: Test 49/49 control criteria capture
+        success, result_data = self.test_49_control_criteria_capture()
+        test_results['upload_and_parse'] = success
+        
+        if success and result_data:
+            test_results['exact_49_match'] = result_data['exact_49_match']
+            test_results['table_iteration_fixed'] = result_data['table_iteration_fixed']
+        else:
+            test_results['exact_49_match'] = False
+            test_results['table_iteration_fixed'] = False
+        
+        # Final Summary
+        print("\n" + "=" * 80)
+        print("📋 TABLE ITERATION FIX TEST SUMMARY")
+        print("=" * 80)
+        
+        if success and result_data:
+            total_items = result_data['total_items']
+            equipment_type = result_data['equipment_type']
+            template_type = result_data['template_type']
+            
+            print(f"Equipment Type: {equipment_type}")
+            print(f"Template Type: {template_type}")
+            print(f"Total Control Items: {total_items}")
+            print(f"Category Distribution: {result_data['category_distribution']}")
+            
+            print(f"\n🎯 CRITICAL QUESTION: 49/49 KONTROL KRİTERİ YAKALANIYOR MU?")
+            
+            if result_data['exact_49_match']:
+                print(f"✅ EVET - Tam olarak 49/49 kontrol kriteri yakalandı!")
+                print(f"✅ Table iteration hatası düzeltildi")
+                print(f"✅ Beklenen sonuç elde edildi")
+            else:
+                print(f"❌ HAYIR - Sadece {total_items}/49 kontrol kriteri yakalandı")
+                print(f"❌ Table iteration hatası henüz tam olarak düzeltilmedi")
+                print(f"❌ {49 - total_items} kontrol kriteri eksik")
+            
+            # Show missing items analysis
+            if result_data['actually_missing'] or result_data['incorrectly_found']:
+                print(f"\n🔍 Missing Items Analysis:")
+                print(f"   Expected missing items: {result_data['expected_missing']}")
+                print(f"   Actually missing: {result_data['actually_missing']}")
+                print(f"   Incorrectly found: {result_data['incorrectly_found']}")
+        else:
+            print(f"❌ Test failed - could not analyze results")
+            print(f"❌ HAYIR - 49/49 kontrol kriteri yakalanamadı")
+        
+        # Overall result
+        overall_success = (
+            test_results.get('authentication', False) and
+            test_results.get('upload_and_parse', False) and
+            test_results.get('exact_49_match', False)
+        )
+        
+        print(f"\n🎯 FINAL ANSWER:")
+        if overall_success:
+            print(f"✅ EVET - Table iteration hatası düzeltildi, 49/49 kontrol kriteri yakalanıyor!")
+        else:
+            print(f"❌ HAYIR - Table iteration hatası henüz tam olarak düzeltilmedi")
+        
+        return test_results
+
 if __name__ == "__main__":
     print("🚀 RoyalCert Backend API Testing Suite")
     print("=" * 80)
     
-    # FINAL TEST ONLY: 49/53 Control Criteria Test
-    print("\n🔧 FINAL TEST: 49/53 KONTROL KRİTERİ YAKALAMA TESTİ")
-    print("-" * 50)
-    
-    final_tester = FinalControlCriteriaTester()
-    final_result = final_tester.run_final_test()
-    
-    # Overall Summary
-    print("\n" + "=" * 80)
-    print("🎯 FINAL TEST SUMMARY")
+    # Run Table Iteration Fix Test - PRIORITY TEST
+    print("\n🔧 PRIORITY TEST: TABLE ITERATION FIX - 49/49 KONTROL KRİTERİ")
     print("=" * 80)
     
-    if final_result:
-        print("🎉 SUCCESS: 49/49 BİREBİR YAKALANIYOR - EVET!")
-        print("✅ Yeni algoritma Word dosyasındaki tüm itemleri doğru yakalıyor")
-        print("✅ Eksik itemler (17, 20, 21, 50) doğru şekilde filtreleniyor")
-    else:
-        print("❌ FAILURE: 49/49 BİREBİR YAKALANMIYOR - HAYIR!")
-        print("❌ Algoritma düzeltmesi gerekiyor")
+    table_fix_tester = TableIterationFixTester()
+    table_fix_results = table_fix_tester.run_table_iteration_fix_test()
     
-    print("\n🎉 Final test completed!")
+    # Final Overall Summary
+    print("\n" + "=" * 80)
+    print("🎯 OVERALL TESTING SUMMARY")
+    print("=" * 80)
+    
+    print("Table Iteration Fix Test:", "✅ PASS" if table_fix_results.get('exact_49_match') else "❌ FAIL")
+    
+    print("\n🎉 Testing completed!")
 
 class RoyalCertPDFReportingTester:
     def __init__(self):

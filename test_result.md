@@ -148,9 +148,9 @@ backend:
 
   - task: "Template Upload System - Word Document Parsing"
     implemented: true
-    working: true
+    working: false
     file: "/app/backend/server.py"
-    stuck_count: 1
+    stuck_count: 2
     priority: "high"
     needs_retesting: false
     status_history:
@@ -169,6 +169,9 @@ backend:
       - working: true
         agent: "testing"
         comment: "🎉 UNIVERSAL TEMPLATE PARSER DATABASE MODEL FIX VERIFIED SUCCESSFULLY: Comprehensive testing of the Universal Template Parser Database Model fix completed with ALL 7/7 tests passing. ✅ CRITICAL FIX CONFIRMED: Updated EquipmentTemplate and EquipmentTemplateCreate Pydantic models now correctly include all 12 universal template structure fields (general_info, measurement_devices, equipment_info, test_values, control_items, categories_dict, test_experiments, defect_explanations, notes, result_opinion, inspector_info, company_official). ✅ DATABASE STORAGE VERIFIED: All universal structure fields are correctly stored in MongoDB during Word document upload and parsing. ✅ API ENDPOINTS WORKING: Both POST /api/equipment-templates/upload and GET /api/equipment-templates endpoints correctly handle universal structure fields. ✅ PARSING QUALITY MAINTAINED: Control item counts remain in acceptable range (47 items per template, within 50-60 target). ✅ TEMPLATE STRUCTURE INTEGRITY: Both FORKLIFT MUAYENE FORMU (FORM) and FORKLIFT MUAYENE RAPORU (REPORT) templates successfully parsed with complete universal structure. ✅ BACKWARD COMPATIBILITY: Legacy categories field maintained alongside new universal structure fields. 🎯 EXPECTED OUTCOME ACHIEVED: The Universal Template Parser Database Model fix is fully functional - all 11 universal structure fields are properly implemented, stored in database, and returned by API endpoints. Template parsing continues to work correctly with reasonable control item counts."
+      - working: false
+        agent: "testing"
+        comment: "🚨 CRITICAL FAILURE: 53/53 KONTROL KRİTERİ YAKALAMA BAŞARISIZ! Comprehensive testing of the parsing algorithm fix revealed that the system is still capturing exactly 47 control criteria instead of the expected 53. ❌ PARSING ALGORITHM FIX NOT WORKING: 1) POST /api/equipment-templates/upload still returns 47 control items, not 53, 2) Equipment type correctly identified as FORKLIFT, template type as FORM, 3) Category distribution shows 6 categories (A-F) with total 47 items: A(12), B(8), C(7), D(8), E(7), F(5), 4) Missing G category which should contain the additional 6 items to reach 53 total. ❌ REGEX PATTERN FIX NOT APPLIED: The numbered items matching pattern (1., 2., 3., etc.) is not capturing all 53 control criteria as expected. ❌ ALGORITHM DÜZELTMESI UYGULANMAMIŞ: The parsing algorithm improvement that should increase the count from 47 to 53 has not been successfully implemented. 🎯 ROOT CAUSE: The regex pattern in parse_universal_template_structure() function is not matching all numbered items in the Word document, missing 6 control criteria that should be in category G. 🚨 IMPACT: %100 doğruluk sağlanamadı - User's critical requirement for exactly 53 control criteria is not met. System continues to use the old parsing logic that captures only 47 items."
 
   - task: "Critical Inspection Workflow Issues Resolution"
     implemented: true

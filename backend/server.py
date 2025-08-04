@@ -683,6 +683,22 @@ async def startup_event():
         }
         await db.users.insert_one(admin_user)
         print("✅ Default admin user created: admin/admin123")
+    
+    # Initialize Caraskal template if doesn't exist
+    caraskal_exists = await db.equipment_templates.find_one({"equipment_type": "CARASKAL"})
+    if not caraskal_exists:
+        admin_user = await db.users.find_one({"role": UserRole.ADMIN})
+        if admin_user:
+            caraskal_data = get_caraskal_template()
+            template_dict = caraskal_data.copy()
+            template_dict["id"] = str(uuid.uuid4())
+            template_dict["created_by"] = admin_user["id"]
+            template_dict["is_active"] = True
+            template_dict["created_at"] = datetime.utcnow()
+            template_dict["updated_at"] = datetime.utcnow()
+            
+            await db.equipment_templates.insert_one(template_dict)
+            print("✅ Caraskal template initialized automatically")
 
 # ===================== HEALTH CHECK =====================
 

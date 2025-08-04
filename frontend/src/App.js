@@ -548,6 +548,19 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleTemplateBuilderSave = async (templateData) => {
+    try {
+      // Manuel template oluşturma
+      const response = await api.post('/equipment-templates', templateData);
+      alert(`✅ Template başarıyla oluşturuldu! ${templateData.total_items} kontrol kriteri eklendi.`);
+      setShowTemplateBuilder(false);
+      fetchTemplates();
+    } catch (error) {
+      console.error('Template Builder save error:', error);
+      alert('Template kaydetme hatası: ' + (error.response?.data?.detail || 'Bilinmeyen hata'));
+    }
+  };
+
   const handleTemplateView = (template) => {
     // TODO: Implement template view functionality
     console.log('View template:', template);

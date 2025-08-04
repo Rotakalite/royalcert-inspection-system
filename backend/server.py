@@ -127,7 +127,9 @@ class EquipmentTemplate(BaseModel):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 class EquipmentTemplateCreate(BaseModel):
+    name: Optional[str] = None
     equipment_type: str
+    template_type: Optional[str] = None  # FORM or REPORT
     description: str
     categories: List[EquipmentCategory]
 

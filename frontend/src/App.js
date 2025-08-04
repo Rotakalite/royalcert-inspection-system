@@ -931,6 +931,11 @@ const CustomerManagement = ({ onBack }) => {
   );
 };
 
+const PlanlamaDashboard = () => {
+  const [stats, setStats] = useState({});
+  const [customers, setCustomers] = useState([]);
+  const [showCustomerManagement, setShowCustomerManagement] = useState(false);
+
   useEffect(() => {
     fetchStats();
     fetchCustomers();

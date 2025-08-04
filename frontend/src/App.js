@@ -381,7 +381,7 @@ const TemplateUploadModal = ({ onClose, selectedFiles, onFileSelect, onSingleUpl
                   id="template-files"
                   type="file"
                   multiple
-                  accept=".docx,.doc"
+                  accept=".docx,.doc,.pdf"
                   onChange={onFileSelect}
                   className="hidden"
                 />

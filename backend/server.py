@@ -2171,7 +2171,7 @@ async def bulk_upload_templates(
             
             # Choose parser based on file type
             if file.filename.endswith('.pdf'):
-                template_data = parse_pdf_document_dynamic(file_content, file.filename)
+                template_data = extract_template_fields_from_word(file_content, file.filename)
             else:
                 template_data = parse_word_document(file_content, file.filename)
             

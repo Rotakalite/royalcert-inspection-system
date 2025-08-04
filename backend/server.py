@@ -495,24 +495,121 @@ async def delete_equipment_template(
         raise HTTPException(status_code=404, detail="Template not found")
     return {"message": "Template deleted successfully"}
 
-@app.post("/api/equipment-templates/initialize")
-async def initialize_caraskal_template(current_user: User = Depends(require_role(UserRole.ADMIN))):
-    """Initialize Caraskal template in database"""
-    # Check if Caraskal template already exists
-    existing = await db.equipment_templates.find_one({"equipment_type": "CARASKAL"})
-    if existing:
-        return {"message": "Caraskal template already exists"}
+class InspectionFormResult(BaseModel):
+    item_id: int
+    category: str
+    value: str  # "U", "UD", "UY"
+    comment: Optional[str] = None
+
+class InspectionFormData(BaseModel):
+    general_info: Dict[str, Any]  # Genel bilgiler (müşteri, tarih vs.)
+    equipment_info: Dict[str, Any]  # Ekipman bilgileri
+    measurement_tools: List[Dict[str, Any]] = []  # Ölçüm aletleri
+    form_results: List[InspectionFormResult]  # Kontrol sonuçları
+    defects: Optional[str] = None  # Kusur açıklamaları
+    notes: Optional[str] = None  # Notlar
+    conclusion: Optional[str] = None  # Sonuç (UYGUN/SAKINCALI)
+
+# ===================== DYNAMIC FORM BUILDER API =====================
+
+@app.get("/api/inspections/{inspection_id}/form")
+async def get_inspection_form(inspection_id: str, current_user: User = Depends(get_current_user)):
+    # Get inspection details
+    query = {"id": inspection_id}
+    if current_user.role == UserRole.DENETCI:
+        query["inspector_id"] = current_user.id
     
-    caraskal_data = get_caraskal_template()
-    template_dict = caraskal_data.copy()
-    template_dict["id"] = str(uuid.uuid4())
-    template_dict["created_by"] = current_user.id
-    template_dict["is_active"] = True
-    template_dict["created_at"] = datetime.utcnow()
-    template_dict["updated_at"] = datetime.utcnow()
+    inspection = await db.inspections.find_one(query)
+    if not inspection:
+        raise HTTPException(status_code=404, detail="Inspection not found")
     
-    await db.equipment_templates.insert_one(template_dict)
-    return {"message": "Caraskal template initialized successfully"}
+    # Get customer info
+    customer = await db.customers.find_one({"id": inspection["customer_id"]})
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    # Get equipment template
+    equipment_type = inspection["equipment_info"].get("equipment_type", "CARASKAL")
+    template = await db.equipment_templates.find_one({"equipment_type": equipment_type, "is_active": True})
+    if not template:
+        raise HTTPException(status_code=404, detail="Equipment template not found")
+    
+    # Get existing form data if any
+    existing_data = inspection.get("report_data", {})
+    
+    form_data = {
+        "inspection": Inspection(**inspection),
+        "customer": Customer(**customer),
+        "template": EquipmentTemplate(**template),
+        "existing_data": existing_data
+    }
+    
+    return form_data
+
+@app.post("/api/inspections/{inspection_id}/form")
+async def save_inspection_form(
+    inspection_id: str,
+    form_data: InspectionFormData,
+    current_user: User = Depends(get_current_user)
+):
+    # Check authorization
+    query = {"id": inspection_id}
+    if current_user.role == UserRole.DENETCI:
+        query["inspector_id"] = current_user.id
+    
+    inspection = await db.inspections.find_one(query)
+    if not inspection:
+        raise HTTPException(status_code=404, detail="Inspection not found")
+    
+    # Validate form data
+    if not form_data.form_results:
+        raise HTTPException(status_code=400, detail="Form results cannot be empty")
+    
+    # Update inspection with form data
+    update_data = {
+        "report_data": form_data.dict(),
+        "updated_at": datetime.utcnow()
+    }
+    
+    await db.inspections.update_one({"id": inspection_id}, {"$set": update_data})
+    
+    # Get updated inspection
+    updated_inspection = await db.inspections.find_one({"id": inspection_id})
+    return {"message": "Form saved successfully", "inspection": Inspection(**updated_inspection)}
+
+@app.get("/api/equipment-templates/{equipment_type}/form-structure")
+async def get_equipment_form_structure(equipment_type: str, current_user: User = Depends(get_current_user)):
+    """Get form structure for specific equipment type"""
+    template = await db.equipment_templates.find_one({"equipment_type": equipment_type.upper(), "is_active": True})
+    if not template:
+        raise HTTPException(status_code=404, detail="Equipment template not found")
+    
+    # Format form structure for frontend
+    form_structure = {
+        "equipment_type": template["equipment_type"],
+        "description": template["description"],
+        "categories": []
+    }
+    
+    for category in template["categories"]:
+        category_data = {
+            "code": category["code"],
+            "name": category["name"],
+            "items": [
+                {
+                    "id": item["id"],
+                    "text": item["text"],
+                    "input_type": item["input_type"],
+                    "has_comment": item["has_comment"],
+                    "required": item["required"],
+                    "options": ["U", "UD", "U.Y"] if item["input_type"] == "dropdown" else None
+                }
+                for item in category["items"]
+            ]
+        }
+        form_structure["categories"].append(category_data)
+    
+    return form_structure
 
 # ===================== INSPECTION MANAGEMENT =====================
 

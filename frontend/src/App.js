@@ -532,56 +532,310 @@ const AdminDashboard = () => {
       )}
 
       {activeTab === 'users' && (
-        <div className="bg-white rounded-xl shadow-sm">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Kullanıcılar</h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ad Soyad</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kullanıcı Adı</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">E-posta</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rol</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Durum</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {users.map((user) => (
-                  <tr key={user.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {user.full_name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {user.username}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {user.email}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        user.role === 'admin' ? 'bg-red-100 text-red-800' :
-                        user.role === 'planlama_uzmani' ? 'bg-blue-100 text-blue-800' :
-                        user.role === 'teknik_yonetici' ? 'bg-purple-100 text-purple-800' :
-                        'bg-green-100 text-green-800'
-                      }`}>
-                        {user.role === 'admin' ? 'Admin' : 
-                         user.role === 'planlama_uzmani' ? 'Planlama Uzmanı' :
-                         user.role === 'teknik_yonetici' ? 'Teknik Yönetici' : 'Denetçi'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        user.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {user.is_active ? 'Aktif' : 'Pasif'}
-                      </span>
-                    </td>
+        <div className="space-y-6">
+          {/* User Form Modal */}
+          {showUserForm && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-xl font-semibold text-gray-900">
+                      {editingUser ? 'Kullanıcı Düzenle' : 'Yeni Kullanıcı Ekle'}
+                    </h2>
+                    <button
+                      onClick={() => {
+                        setShowUserForm(false);
+                        setEditingUser(null);
+                        setUserFormData({
+                          username: '',
+                          email: '',
+                          full_name: '',
+                          role: 'denetci',
+                          password: '',
+                          confirm_password: '',
+                          is_active: true
+                        });
+                      }}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                
+                <form onSubmit={handleCreateUser} className="p-6 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Ad Soyad *</label>
+                    <input
+                      type="text"
+                      required
+                      value={userFormData.full_name}
+                      onChange={(e) => setUserFormData({...userFormData, full_name: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                      placeholder="Kullanıcının tam adı"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Kullanıcı Adı *</label>
+                    <input
+                      type="text"
+                      required
+                      value={userFormData.username}
+                      onChange={(e) => setUserFormData({...userFormData, username: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                      placeholder="Giriş için kullanıcı adı"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">E-posta *</label>
+                    <input
+                      type="email"
+                      required
+                      value={userFormData.email}
+                      onChange={(e) => setUserFormData({...userFormData, email: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                      placeholder="kullanici@royalcert.com"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Rol *</label>
+                    <select
+                      value={userFormData.role}
+                      onChange={(e) => setUserFormData({...userFormData, role: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                    >
+                      <option value="denetci">Denetçi</option>
+                      <option value="planlama_uzmani">Planlama Uzmanı</option>
+                      <option value="teknik_yonetici">Teknik Yönetici</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {editingUser ? 'Yeni Şifre (Boş bırakılırsa değişmez)' : 'Şifre *'}
+                    </label>
+                    <input
+                      type="password"
+                      required={!editingUser}
+                      value={userFormData.password}
+                      onChange={(e) => setUserFormData({...userFormData, password: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                      placeholder="En az 6 karakter"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {editingUser ? 'Şifre Tekrar' : 'Şifre Tekrar *'}
+                    </label>
+                    <input
+                      type="password"
+                      required={!editingUser && userFormData.password}
+                      value={userFormData.confirm_password}
+                      onChange={(e) => setUserFormData({...userFormData, confirm_password: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                      placeholder="Şifrenizi tekrar girin"
+                    />
+                  </div>
+                  
+                  <div className="flex justify-end space-x-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowUserForm(false);
+                        setEditingUser(null);
+                      }}
+                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                    >
+                      İptal
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-6 py-2 bg-red-900 text-white rounded-md hover:bg-red-800"
+                    >
+                      {editingUser ? 'Güncelle' : 'Kullanıcı Oluştur'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Password Change Modal */}
+          {showPasswordModal && passwordModalUser && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-xl font-semibold text-gray-900">
+                      Şifre Değiştir - {passwordModalUser.full_name}
+                    </h2>
+                    <button
+                      onClick={() => {
+                        setShowPasswordModal(false);
+                        setPasswordModalUser(null);
+                      }}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                
+                <form onSubmit={handlePasswordChange} className="p-6 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Yeni Şifre *</label>
+                    <input
+                      type="password"
+                      name="new_password"
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                      placeholder="En az 6 karakter"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Şifre Tekrar *</label>
+                    <input
+                      type="password"
+                      name="confirm_password"
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                      placeholder="Yeni şifrenizi tekrar girin"
+                    />
+                  </div>
+                  
+                  <div className="flex justify-end space-x-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowPasswordModal(false);
+                        setPasswordModalUser(null);
+                      }}
+                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                    >
+                      İptal
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-6 py-2 bg-red-900 text-white rounded-md hover:bg-red-800"
+                    >
+                      Şifreyi Değiştir
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* User List */}
+          <div className="bg-white rounded-xl shadow-sm">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg font-semibold text-gray-900">Kullanıcı Yönetimi</h2>
+                <button
+                  onClick={() => setShowUserForm(true)}
+                  className="px-4 py-2 bg-red-900 text-white rounded-md hover:bg-red-800"
+                >
+                  + Yeni Kullanıcı Ekle
+                </button>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ad Soyad</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kullanıcı Adı</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">E-posta</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rol</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Durum</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">İşlemler</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {users.map((user) => (
+                    <tr key={user.id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {user.full_name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {user.username}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {user.email}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          user.role === 'admin' ? 'bg-red-100 text-red-800' :
+                          user.role === 'planlama_uzmani' ? 'bg-blue-100 text-blue-800' :
+                          user.role === 'teknik_yonetici' ? 'bg-purple-100 text-purple-800' :
+                          'bg-green-100 text-green-800'
+                        }`}>
+                          {user.role === 'admin' ? 'Admin' : 
+                           user.role === 'planlama_uzmani' ? 'Planlama Uzmanı' :
+                           user.role === 'teknik_yonetici' ? 'Teknik Yönetici' : 'Denetçi'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          user.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {user.is_active ? 'Aktif' : 'Pasif'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                        <button
+                          onClick={() => handleEditUser(user)}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          Düzenle
+                        </button>
+                        <button
+                          onClick={() => {
+                            setPasswordModalUser(user);
+                            setShowPasswordModal(true);
+                          }}
+                          className="text-indigo-600 hover:text-indigo-900"
+                        >
+                          Şifre
+                        </button>
+                        <button
+                          onClick={() => handleToggleUserStatus(user)}
+                          className={`${user.is_active ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'}`}
+                        >
+                          {user.is_active ? 'Pasifleştir' : 'Aktifleştir'}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteUser(user)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          Sil
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              
+              {users.length === 0 && (
+                <div className="text-center py-12">
+                  <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                  </svg>
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">Kullanıcı bulunamadı</h3>
+                  <p className="mt-1 text-sm text-gray-500">Yeni kullanıcı eklemek için yukarıdaki butona tıklayın.</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

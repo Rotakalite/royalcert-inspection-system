@@ -1498,6 +1498,18 @@ const AdminDashboard = () => {
           onSave={handleTemplateBuilderSave}
         />
       )}
+
+      {/* Template Preview Modal */}
+      {showTemplatePreview && (
+        <TemplatePreviewModal
+          template={previewTemplate}
+          isOpen={showTemplatePreview}
+          onClose={() => {
+            setShowTemplatePreview(false);
+            setPreviewTemplate(null);
+          }}
+        />
+      )}
     </div>
   );
 };

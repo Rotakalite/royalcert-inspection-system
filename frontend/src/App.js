@@ -1131,10 +1131,10 @@ const AdminDashboard = () => {
                     + Yeni Template Ekle
                   </button>
                   <button
-                    onClick={initializeTemplates}
+                    onClick={() => setShowUploadModal(true)}
                     className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
                   >
-                    📋 CARASKAL Template Başlat
+                    📄 Template Yükle
                   </button>
                 </div>
               </div>

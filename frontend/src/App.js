@@ -258,6 +258,30 @@ const AdminDashboard = () => {
     }
   };
 
+  // Show Customer Management
+  if (showCustomerManagement) {
+    return (
+      <CustomerManagement 
+        onBack={() => {
+          setShowCustomerManagement(false);
+          fetchStats();
+        }} 
+      />
+    );
+  }
+
+  // Show Inspection Planning
+  if (showInspectionPlanning) {
+    return (
+      <InspectionPlanning 
+        onBack={() => {
+          setShowInspectionPlanning(false);
+          fetchStats();
+        }} 
+      />
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">

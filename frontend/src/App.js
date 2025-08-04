@@ -3616,10 +3616,23 @@ const DenetciDashboard = () => {
   const fetchInspections = async () => {
     try {
       const response = await api.get('/inspections');
+      
+      // Get current user from localStorage with better error handling
+      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const currentUserId = currentUser.id;
+      
+      console.log('DEBUG: Current user:', currentUser);
+      console.log('DEBUG: Current user ID:', currentUserId);
+      console.log('DEBUG: All inspections:', response.data);
+      
       // Filter only inspections assigned to current user
-      const userInspections = response.data.filter(inspection => 
-        inspection.inspector_id === JSON.parse(localStorage.getItem('user') || '{}').id
-      );
+      const userInspections = response.data.filter(inspection => {
+        console.log(`DEBUG: Inspection ${inspection.id} - inspector_id: ${inspection.inspector_id}, current user: ${currentUserId}`);
+        return inspection.inspector_id === currentUserId;
+      });
+      
+      console.log('DEBUG: Filtered user inspections:', userInspections);
+      
       setInspections(userInspections);
     } catch (error) {
       console.error('Inspections error:', error);

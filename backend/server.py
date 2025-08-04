@@ -107,9 +107,14 @@ class Inspection(BaseModel):
     equipment_info: Dict[str, Any]
     inspector_id: str
     planned_date: datetime
-    status: str = "beklemede"  # beklemede, devam_ediyor, tamamlandi
+    status: str = "beklemede"  # beklemede, devam_ediyor, rapor_yazildi, onaylandi, reddedildi
+    report_data: Optional[Dict[str, Any]] = None  # Denetim rapor verileri
+    approval_notes: Optional[str] = None  # Teknik yönetici notları
+    approved_by: Optional[str] = None  # Onaylayan teknik yöneticinin ID'si
+    approved_at: Optional[datetime] = None  # Onaylanma tarihi
     created_by: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 class InspectionCreate(BaseModel):
     customer_id: str

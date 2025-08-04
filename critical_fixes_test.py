@@ -232,10 +232,14 @@ class CriticalFixesTester:
             # Create a test template using SimpleTemplateBuilder logic
             print("🔧 Creating test template with SimpleTemplateBuilder...")
             
+            # Use a unique equipment type with timestamp to avoid conflicts
+            import time
+            unique_suffix = str(int(time.time()))
+            
             # This simulates what SimpleTemplateBuilder should now do
             template_data = {
-                "name": "TEST SIMPLE TEMPLATE",
-                "equipment_type": "TEST_EQUIPMENT",
+                "name": f"TEST SIMPLE TEMPLATE {unique_suffix}",
+                "equipment_type": f"TEST_EQUIPMENT_{unique_suffix}",
                 "template_type": "FORM",
                 "description": "Test template created by SimpleTemplateBuilder",
                 "categories": [

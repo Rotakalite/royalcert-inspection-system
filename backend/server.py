@@ -1644,7 +1644,7 @@ async def fix_orphaned_inspector_ids(current_user: User = Depends(get_current_us
     
     try:
         # Get all active inspectors
-        inspectors = await db.users.find({"role": UserRole.DENETCI, "is_active": True}).to_list(None)
+        inspectors = await db.users.find({"role": "denetci", "is_active": True}).to_list(None)
         valid_inspector_ids = {insp["id"] for insp in inspectors}
         
         # Get all beklemede inspections

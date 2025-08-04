@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Backend API Testing for RoyalCert PDF Reporting System
-Tests the existing backend infrastructure for PDF reporting implementation
-Focus: Understanding data structures and endpoints for PDF generation
+Backend API Testing for RoyalCert Template Upload System
+Tests the new template upload system for Word document parsing and bulk upload functionality
+Focus: Testing Word document parsing, template creation, and authentication
 """
 
 import requests

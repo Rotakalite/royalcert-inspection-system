@@ -2009,7 +2009,10 @@ const CustomerManagement = ({ onBack }) => {
                           <input
                             type="text"
                             value={selectedEquipment?.capacity || ''}
-                            onChange={(e) => handleEquipmentDetailChange(template.id, 'capacity', e.target.value)}
+                            onChange={(e) => {
+                              const formTemplate = equipmentGroup.templates.find(t => t.template_type === 'FORM') || equipmentGroup.templates[0];
+                              handleEquipmentDetailChange(formTemplate.id, 'capacity', e.target.value);
+                            }}
                             className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-red-900"
                             placeholder="Kapasite"
                           />
@@ -2021,7 +2024,10 @@ const CustomerManagement = ({ onBack }) => {
                           <input
                             type="text"
                             value={selectedEquipment?.manufacturing_year || ''}
-                            onChange={(e) => handleEquipmentDetailChange(template.id, 'manufacturing_year', e.target.value)}
+                            onChange={(e) => {
+                              const formTemplate = equipmentGroup.templates.find(t => t.template_type === 'FORM') || equipmentGroup.templates[0];
+                              handleEquipmentDetailChange(formTemplate.id, 'manufacturing_year', e.target.value);
+                            }}
                             className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-red-900"
                             placeholder="İmalat yılı"
                           />
@@ -2030,7 +2036,7 @@ const CustomerManagement = ({ onBack }) => {
                     )}
                   </div>
                 );
-              })}
+              })()}
             </div>
           </div>
 

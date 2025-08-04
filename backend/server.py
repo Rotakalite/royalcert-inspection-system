@@ -161,6 +161,27 @@ class InspectionApproval(BaseModel):
     action: str  # "approve" or "reject"
     notes: Optional[str] = None
 
+class BulkImportResult(BaseModel):
+    total_rows: int
+    successful_imports: int
+    failed_imports: int
+    errors: List[Dict[str, Any]] = []
+    warnings: List[str] = []
+
+class BulkImportItem(BaseModel):
+    muayene_alani: Optional[str] = None
+    muayene_alt_alani: Optional[str] = None
+    muayene_turu: Optional[str] = None
+    referans: Optional[str] = None
+    muayene_tarihi: Optional[str] = None
+    zorunlu_alan: Optional[str] = None
+    musteri_adi: str
+    musteri_adresi: str
+    denetci_adi: Optional[str] = None
+    denetci_lokasyonu: Optional[str] = None
+    rapor_onay_tarihi: Optional[str] = None
+    rapor_onaylayan: Optional[str] = None
+
 # ===================== AUTH FUNCTIONS =====================
 
 def verify_password(plain_password, hashed_password):

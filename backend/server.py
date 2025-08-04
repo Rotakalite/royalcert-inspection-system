@@ -1063,11 +1063,6 @@ async def get_inspection(inspection_id: str, current_user: User = Depends(get_cu
 
 # ===================== INSPECTION APPROVAL (TEKNİK YÖNETİCİ) =====================
 
-@app.get("/api/inspections/pending-approval", response_model=List[Inspection])
-async def get_pending_approval_inspections(current_user: User = Depends(require_role(UserRole.TEKNIK_YONETICI))):
-    inspections = await db.inspections.find({"status": "rapor_yazildi"}).to_list(1000)
-    return [Inspection(**inspection) for inspection in inspections]
-
 @app.post("/api/inspections/{inspection_id}/approve")
 async def approve_inspection(
     inspection_id: str, 

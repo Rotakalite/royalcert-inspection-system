@@ -294,6 +294,65 @@ async def get_users(current_user: User = Depends(require_role(UserRole.ADMIN))):
     users = await db.users.find({}, {"password": 0}).to_list(1000)
     return [User(**user) for user in users]
 
+@app.put("/api/users/{user_id}")
+async def update_user(user_id: str, user_data: dict, current_user: User = Depends(require_role(UserRole.ADMIN))):
+    # Build update data
+    update_data = {}
+    
+    if "full_name" in user_data:
+        update_data["full_name"] = user_data["full_name"]
+    if "email" in user_data:
+        update_data["email"] = user_data["email"] 
+    if "username" in user_data:
+        update_data["username"] = user_data["username"]
+    if "role" in user_data:
+        update_data["role"] = user_data["role"]
+    if "is_active" in user_data:
+        update_data["is_active"] = user_data["is_active"]
+    
+    # Update password if provided
+    if "password" in user_data and user_data["password"]:
+        hashed_password = pwd_context.hash(user_data["password"])
+        update_data["password_hash"] = hashed_password
+    
+    update_data["updated_at"] = datetime.utcnow()
+    
+    result = await db.users.update_one(
+        {"id": user_id}, 
+        {"$set": update_data}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Return updated user
+    updated_user = await db.users.find_one({"id": user_id})
+    return User(**updated_user)
+
+@app.put("/api/users/{user_id}/password")
+async def change_user_password(user_id: str, password_data: dict, current_user: User = Depends(require_role(UserRole.ADMIN))):
+    if "new_password" not in password_data:
+        raise HTTPException(status_code=400, detail="new_password field is required")
+    
+    new_password = password_data["new_password"]
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters long")
+    
+    hashed_password = pwd_context.hash(new_password)
+    
+    result = await db.users.update_one(
+        {"id": user_id},
+        {"$set": {
+            "password_hash": hashed_password,
+            "updated_at": datetime.utcnow()
+        }}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {"message": "Password changed successfully"}
+
 @app.delete("/api/users/{user_id}")
 async def delete_user(user_id: str, current_user: User = Depends(require_role(UserRole.ADMIN))):
     result = await db.users.delete_one({"id": user_id})

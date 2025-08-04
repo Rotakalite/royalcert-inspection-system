@@ -146,11 +146,13 @@ class CriticalFixesTester:
                 print(f"   Category {category}: Questions {min(questions)}-{max(questions)} ({len(questions)} items)")
             
             # Verify the fix
-            questions_43_53_in_G = all(43 <= q <= 53 for q in category_distribution.get('G', []))
+            questions_49_53_in_G = all(49 <= q <= 53 for q in category_distribution.get('G', []))
+            questions_41_48_in_F = all(41 <= q <= 48 for q in category_distribution.get('F', []))
             all_53_questions_covered = len([q for questions in category_distribution.values() for q in questions]) == 53
             
             print(f"\n🎯 CRITICAL FIX 1 VERIFICATION:")
-            print(f"   Questions 43-53 in Category G: {'✅ YES' if questions_43_53_in_G else '❌ NO'}")
+            print(f"   Questions 41-48 in Category F: {'✅ YES' if questions_41_48_in_F else '❌ NO'}")
+            print(f"   Questions 49-53 in Category G: {'✅ YES' if questions_49_53_in_G else '❌ NO'}")
             print(f"   All 53 questions covered: {'✅ YES' if all_53_questions_covered else '❌ NO'}")
             print(f"   Problematic questions: {problematic_questions if problematic_questions else 'None'}")
             

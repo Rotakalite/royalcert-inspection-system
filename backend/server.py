@@ -345,6 +345,72 @@ async def get_inspection(inspection_id: str, current_user: User = Depends(get_cu
 
 # ===================== DASHBOARD STATS =====================
 
+# ===================== INSPECTION APPROVAL (TEKNİK YÖNETİCİ) =====================
+
+@app.get("/api/inspections/pending-approval", response_model=List[Inspection])
+async def get_pending_approval_inspections(current_user: User = Depends(require_role(UserRole.TEKNIK_YONETICI))):
+    inspections = await db.inspections.find({"status": "rapor_yazildi"}).to_list(1000)
+    return [Inspection(**inspection) for inspection in inspections]
+
+@app.post("/api/inspections/{inspection_id}/approve")
+async def approve_inspection(
+    inspection_id: str, 
+    approval: InspectionApproval,
+    current_user: User = Depends(require_role(UserRole.TEKNIK_YONETICI))
+):
+    inspection = await db.inspections.find_one({"id": inspection_id})
+    if not inspection:
+        raise HTTPException(status_code=404, detail="Inspection not found")
+    
+    if inspection["status"] != "rapor_yazildi":
+        raise HTTPException(status_code=400, detail="Inspection is not ready for approval")
+    
+    update_data = {
+        "approval_notes": approval.notes,
+        "approved_by": current_user.id,
+        "approved_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow()
+    }
+    
+    if approval.action == "approve":
+        update_data["status"] = "onaylandi"
+    elif approval.action == "reject":
+        update_data["status"] = "reddedildi"
+    else:
+        raise HTTPException(status_code=400, detail="Invalid action. Use 'approve' or 'reject'")
+    
+    await db.inspections.update_one({"id": inspection_id}, {"$set": update_data})
+    
+    updated_inspection = await db.inspections.find_one({"id": inspection_id})
+    return Inspection(**updated_inspection)
+
+# ===================== INSPECTION UPDATE (DENETÇİ) =====================
+
+@app.put("/api/inspections/{inspection_id}", response_model=Inspection)
+async def update_inspection(
+    inspection_id: str,
+    inspection_update: InspectionUpdate,
+    current_user: User = Depends(get_current_user)
+):
+    query = {"id": inspection_id}
+    if current_user.role == UserRole.DENETCI:
+        query["inspector_id"] = current_user.id
+    
+    inspection = await db.inspections.find_one(query)
+    if not inspection:
+        raise HTTPException(status_code=404, detail="Inspection not found or not authorized")
+    
+    update_data = {"updated_at": datetime.utcnow()}
+    if inspection_update.status:
+        update_data["status"] = inspection_update.status
+    if inspection_update.report_data:
+        update_data["report_data"] = inspection_update.report_data
+    
+    await db.inspections.update_one({"id": inspection_id}, {"$set": update_data})
+    
+    updated_inspection = await db.inspections.find_one({"id": inspection_id})
+    return Inspection(**updated_inspection)
+
 @app.get("/api/dashboard/stats")
 async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
     stats = {}
@@ -353,7 +419,7 @@ async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
         total_customers = await db.customers.count_documents({})
         total_inspections = await db.inspections.count_documents({})
         pending_inspections = await db.inspections.count_documents({"status": "beklemede"})
-        completed_inspections = await db.inspections.count_documents({"status": "tamamlandi"})
+        completed_inspections = await db.inspections.count_documents({"status": "onaylandi"})
         
         stats.update({
             "total_customers": total_customers,
@@ -365,12 +431,31 @@ async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
     if current_user.role == UserRole.DENETCI:
         my_inspections = await db.inspections.count_documents({"inspector_id": current_user.id})
         my_pending = await db.inspections.count_documents({"inspector_id": current_user.id, "status": "beklemede"})
-        my_completed = await db.inspections.count_documents({"inspector_id": current_user.id, "status": "tamamlandi"})
+        my_in_progress = await db.inspections.count_documents({"inspector_id": current_user.id, "status": "devam_ediyor"})
+        my_completed = await db.inspections.count_documents({"inspector_id": current_user.id, "status": "rapor_yazildi"})
         
         stats.update({
             "my_inspections": my_inspections,
             "my_pending": my_pending,
+            "my_in_progress": my_in_progress,
             "my_completed": my_completed
+        })
+    
+    if current_user.role == UserRole.TEKNIK_YONETICI:
+        pending_approval = await db.inspections.count_documents({"status": "rapor_yazildi"})
+        approved_today = await db.inspections.count_documents({
+            "status": "onaylandi",
+            "approved_by": current_user.id,
+            "approved_at": {"$gte": datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)}
+        })
+        rejected_reports = await db.inspections.count_documents({"status": "reddedildi"})
+        total_approved = await db.inspections.count_documents({"approved_by": current_user.id, "status": "onaylandi"})
+        
+        stats.update({
+            "pending_approval": pending_approval,
+            "approved_today": approved_today,
+            "rejected_reports": rejected_reports,
+            "total_approved": total_approved
         })
     
     return stats

@@ -1031,7 +1031,19 @@ const PlanlamaDashboard = () => {
         </div>
         <div className="p-6">
           {customers.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">Henüz müşteri eklenmemiş</p>
+            <div className="text-center py-8">
+              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 515.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 919.288 0M15 7a3 3 0 11-6 0 3 3 0 616 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+              </svg>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">Henüz müşteri eklenmemiş</h3>
+              <p className="mt-1 text-sm text-gray-500">İlk müşteriyi eklemek için müşteri yönetimi sayfasına gidin.</p>
+              <button
+                onClick={() => setShowCustomerManagement(true)}
+                className="mt-4 px-4 py-2 bg-red-900 text-white text-sm rounded-md hover:bg-red-800"
+              >
+                Müşteri Ekle
+              </button>
+            </div>
           ) : (
             <div className="space-y-4">
               {customers.slice(0, 5).map((customer) => (

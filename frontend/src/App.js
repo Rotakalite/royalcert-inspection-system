@@ -63,7 +63,9 @@ const AuthProvider = ({ children }) => {
       const response = await api.post('/auth/login', { username, password });
       const { access_token, user } = response.data;
       
+      // Save both token and user to localStorage
       localStorage.setItem('token', access_token);
+      localStorage.setItem('user', JSON.stringify(user));
       setUser(user);
       return { success: true };
     } catch (error) {

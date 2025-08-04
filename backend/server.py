@@ -1647,7 +1647,6 @@ async def fix_orphaned_inspector_ids(current_user: User = Depends(get_current_us
         inspectors = await db.users.find({"role": "denetci"}).to_list(None)
         # Filter for active inspectors (handle missing is_active field)
         inspectors = [insp for insp in inspectors if insp.get("is_active", True)]
-        print(f"DEBUG: Found {len(inspectors)} inspectors in data fix endpoint")
         valid_inspector_ids = {insp["id"] for insp in inspectors}
         
         # Get all beklemede inspections

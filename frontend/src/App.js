@@ -1488,9 +1488,9 @@ const AdminDashboard = () => {
         </div>
       )}
       
-      {/* Template Builder Modal */}
+      {/* Simple Template Builder Modal */}
       {showTemplateBuilder && (
-        <TemplateBuilderModal
+        <SimpleTemplateBuilder
           isOpen={showTemplateBuilder}
           onClose={() => setShowTemplateBuilder(false)}
           onSave={handleTemplateBuilderSave}

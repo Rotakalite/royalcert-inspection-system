@@ -1399,126 +1399,159 @@ def parse_word_document(file_content: bytes, filename: str) -> dict:
         raise HTTPException(status_code=400, detail=f"Failed to parse Word document: {str(e)}")
 
 def parse_pdf_document(file_content: bytes, filename: str) -> dict:
-    """Parse PDF document to extract control items and template structure"""
+    """DYNAMIC PDF parser - Formda ne varsa o! Hiçbir sınır yok!"""
     
-    print(f"DEBUG: Starting PDF parsing for {filename}")
+    print(f"DEBUG: Starting DYNAMIC PDF parsing for {filename}")
     
-    # Determine equipment type from filename
+    # Equipment type - daha geniş tanıma
     filename_upper = filename.upper()
     equipment_type = "UNKNOWN"
-    template_type = "FORM"
     
-    if "FORKLIFT" in filename_upper or "FORKLIFT" in filename_upper:
-        equipment_type = "FORKLIFT"
-    elif "CARASKAL" in filename_upper:
-        equipment_type = "CARASKAL"
-    elif "ISKELE" in filename_upper or "İSKELE" in filename_upper:
-        equipment_type = "ISKELE"
-    elif "VINC" in filename_upper or "VİNÇ" in filename_upper:
-        equipment_type = "VINC"
-    elif "ASANSÖR" in filename_upper or "ASANSOR" in filename_upper:
-        equipment_type = "ASANSÖR"
+    # Daha kapsamlı equipment type detection
+    equipment_keywords = {
+        "FORKLIFT": ["FORKLIFT", "FORK", "LİFT"],
+        "CARASKAL": ["CARASKAL", "CARAS", "ASKAL"],
+        "ISKELE": ["ISKELE", "İSKELE", "SCAFF"],  
+        "VINC": ["VINC", "VİNÇ", "CRANE", "KRİK"],
+        "ASANSÖR": ["ASANSÖR", "ASANSOR", "ELEVATöR", "LIFT"],
+        "PLATFORM": ["PLATFORM", "PLATFORMU"],
+        "KOMPRESÖR": ["KOMPRESÖR", "KOMPRESOR", "COMPRESSOR"],
+        "JENERATÖR": ["JENERATÖR", "GENERATOR", "GENERATöR"]
+    }
     
-    # Determine template type
-    if "RAPOR" in filename_upper or "REPORT" in filename_upper:
-        template_type = "REPORT"
-    else:
-        template_type = "FORM"
-        template_name = f"{equipment_type} MUAYENE FORMU"
+    for eq_type, keywords in equipment_keywords.items():
+        if any(keyword in filename_upper for keyword in keywords):
+            equipment_type = eq_type
+            break
     
-    if template_type == "REPORT":
-        template_name = f"{equipment_type} MUAYENE RAPORU"
-    else:
-        template_name = f"{equipment_type} MUAYENE FORMU"
+    # Template type
+    template_type = "REPORT" if any(word in filename_upper for word in ["RAPOR", "REPORT"]) else "FORM"
+    template_name = f"{equipment_type} MUAYENE {'RAPORU' if template_type == 'REPORT' else 'FORMU'}"
     
-    # Extract text from PDF
+    # Extract ALL text from PDF - NO FILTERING!
+    text_content = ""
     try:
-        text_content = ""
-        
-        # Method 1: Try pdfplumber (more reliable for tables)
+        # Method 1: pdfplumber (en iyi table extraction)
         try:
             with pdfplumber.open(io.BytesIO(file_content)) as pdf:
-                for page in pdf.pages:
+                for page_num, page in enumerate(pdf.pages, 1):
+                    print(f"DEBUG: Processing page {page_num}")
+                    
+                    # Text extraction
                     page_text = page.extract_text()
                     if page_text:
+                        text_content += f"\n--- PAGE {page_num} ---\n"
                         text_content += page_text + "\n"
                     
-                    # Extract tables if any
+                    # Table extraction - BÜTÜN TABLOLAR!
                     tables = page.extract_tables()
-                    for table in tables:
-                        for row in table:
+                    for table_num, table in enumerate(tables, 1):
+                        print(f"DEBUG: Processing table {table_num} on page {page_num}")
+                        text_content += f"\n--- TABLE {table_num} ON PAGE {page_num} ---\n"
+                        for row_num, row in enumerate(table):
                             if row:
-                                text_content += " | ".join([cell or "" for cell in row]) + "\n"
+                                # Her satırı text olarak ekle
+                                row_text = " | ".join([str(cell).strip() if cell else "" for cell in row])
+                                if row_text.strip():
+                                    text_content += f"ROW{row_num}: {row_text}\n"
+                    
+                    print(f"DEBUG: Page {page_num} - Text: {len(page_text or '')} chars, Tables: {len(tables)}")
             
-            print(f"DEBUG: pdfplumber extracted {len(text_content)} characters")
+            print(f"DEBUG: pdfplumber total extracted: {len(text_content)} characters")
         
         except Exception as e:
             print(f"DEBUG: pdfplumber failed: {e}, trying PyPDF2")
             
-            # Method 2: Fallback to PyPDF2
+            # Fallback: PyPDF2
             pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_content))
-            for page in pdf_reader.pages:
+            for page_num, page in enumerate(pdf_reader.pages, 1):
                 page_text = page.extract_text()
                 if page_text:
-                    text_content += page_text + "\n"
+                    text_content += f"\n--- PAGE {page_num} ---\n{page_text}\n"
             
-            print(f"DEBUG: PyPDF2 extracted {len(text_content)} characters")
+            print(f"DEBUG: PyPDF2 extracted: {len(text_content)} characters")
     
     except Exception as e:
-        print(f"DEBUG: PDF text extraction failed: {e}")
-        text_content = ""
+        print(f"ERROR: PDF extraction failed: {e}")
+        raise ValueError(f"PDF'den metin çıkarılamadı: {e}")
     
     if not text_content:
-        raise ValueError("PDF'den metin çıkarılamadı")
+        raise ValueError("PDF boş veya metin içermiyor")
     
-    # Parse control items from extracted text
-    control_items = []
-    unique_items = {}
+    # DYNAMIC PARSING - Formda ne varsa o!
+    print("DEBUG: Starting DYNAMIC parsing - NO LIMITS!")
     
-    # Extract numbered items (1., 2., 3., etc.) - MUCH MORE RELIABLE IN PDF
-    pattern = r'(\d+)\.\s*([^\n]+)'
-    matches = re.findall(pattern, text_content, re.MULTILINE)
+    # 1. TÜM NUMARALI ITEMLERI BUL - HİÇBİR SINIR YOK!
+    numbered_items = {}
     
-    print(f"DEBUG: Found {len(matches)} numbered items in PDF")
+    # Pattern 1: Normal numbered items (1., 2., 3., etc.)
+    pattern1 = r'(?:^|\n|\r)\s*(\d+)\s*[.\.)]\s*([^\n\r]+)'
+    matches1 = re.findall(pattern1, text_content, re.MULTILINE | re.IGNORECASE)
     
-    for match in matches:
+    # Pattern 2: Table row patterns (ROW1: 1. item_text)
+    pattern2 = r'ROW\d+:\s*(\d+)\s*[.\.)]\s*([^|\n\r]+)'
+    matches2 = re.findall(pattern2, text_content, re.MULTILINE | re.IGNORECASE)
+    
+    # Pattern 3: Dash or space separated (1 - item_text, 1 item_text)
+    pattern3 = r'(?:^|\n|\r)\s*(\d+)\s*[-–—]\s*([^\n\r]+)'
+    matches3 = re.findall(pattern3, text_content, re.MULTILINE | re.IGNORECASE)
+    
+    all_matches = matches1 + matches2 + matches3
+    print(f"DEBUG: Found {len(all_matches)} total numbered items")
+    
+    for match in all_matches:
         try:
             item_number = int(match[0])
             item_text = match[1].strip()
             
-            # Filter out headers and non-control items
-            if (len(item_text) > 15 and 
-                item_number <= 60 and
-                not any(skip_word in item_text.upper() for skip_word in 
-                       ['GENEL', 'BİLGİLER', 'KONTROL', 'TEST', 'RAPOR', 'BAŞLIK', 'FORM']) and
-                item_number not in unique_items):
+            # MINIMAL FILTERING - sadece boş ve çok kısa olanları at
+            if len(item_text) > 3 and item_text not in numbered_items:
+                numbered_items[item_number] = item_text
                 
-                unique_items[item_number] = item_text
-                
-        except ValueError:
+        except (ValueError, IndexError):
             continue
     
-    # Create control items with categories
-    for item_number in sorted(unique_items.keys()):
-        item_text = unique_items[item_number]
-        
-        # Smart category determination for 53 items
-        if item_number <= 8:
-            category = 'A'
-        elif item_number <= 16:
-            category = 'B'
-        elif item_number <= 24:
-            category = 'C'
-        elif item_number <= 32:
-            category = 'D'
-        elif item_number <= 40:
-            category = 'E'
-        elif item_number <= 48:
-            category = 'F'
-        elif item_number <= 53:
-            category = 'G'
-        else:
-            category = 'H'
+    print(f"DEBUG: DYNAMIC parsing found {len(numbered_items)} unique items")
+    if numbered_items:
+        min_item = min(numbered_items.keys())
+        max_item = max(numbered_items.keys())
+        print(f"DEBUG: Item range: {min_item} to {max_item}")
+    
+    # 2. DYNAMIC CATEGORY DETECTION - Formda ne varsa o!
+    categories_found = set()
+    category_patterns = [
+        r'(?:KATEGORİ|KATEGORI|SECTION|BÖLÜM)\s*([A-Z]+)',
+        r'([A-Z])\s*[-.]?\s*(?:KATEGORİ|KATEGORI|BÖLÜM)',
+        r'\b([A-Z])\s*GRUBU\s*[:.]',
+        r'([A-Z])\s*[).]\s*(?:[A-Z][a-z]+ [a-z]+)'  # A) Genel kontroller gibi
+    ]
+    
+    for pattern in category_patterns:
+        matches = re.findall(pattern, text_content, re.IGNORECASE)
+        for match in matches:
+            if isinstance(match, str) and len(match) == 1 and match.isalpha():
+                categories_found.add(match.upper())
+    
+    # Eğer kategori bulunamadıysa, item sayısına göre otomatik oluştur
+    if not categories_found:
+        total_items = len(numbered_items)
+        if total_items > 0:
+            # Her 10 itemde bir kategori oluştur
+            num_categories = max(1, (total_items + 9) // 10)  # Round up
+            categories_found = set(chr(ord('A') + i) for i in range(num_categories))
+            print(f"DEBUG: No categories found in text, created {num_categories} categories for {total_items} items")
+    
+    print(f"DEBUG: Categories found: {sorted(categories_found)}")
+    
+    # 3. CONTROL ITEMS OLUŞTUR - HİÇBİR SINIR YOK!
+    control_items = []
+    categories_list = sorted(categories_found) if categories_found else ['A']
+    items_per_category = len(numbered_items) // len(categories_list) if categories_list else len(numbered_items)
+    
+    for i, (item_number, item_text) in enumerate(sorted(numbered_items.items())):
+        # Dynamic category assignment
+        category_index = min(i // max(1, items_per_category), len(categories_list) - 1)
+        category = categories_list[category_index]
         
         control_items.append({
             "id": item_number,
@@ -1526,105 +1559,122 @@ def parse_pdf_document(file_content: bytes, filename: str) -> dict:
             "category": category,
             "input_type": "dropdown",
             "has_comment": True,
+            "has_photo": True,
             "required": True
         })
     
-    print(f"DEBUG: Created {len(control_items)} control items from PDF")
+    # 4. FORM STRUCTURE DETECTION - Dinamik alan tespiti
+    form_sections = {}
     
-    # Group by categories
+    # Genel bilgiler detection
+    general_info_patterns = [
+        r'(?:FİRMA|COMPANY)\s*(?:ADI|NAME)[:\s]*([^\n\r]+)',
+        r'(?:MUAYENE|INSPECTION)\s*(?:ADRESİ|ADDRESS)[:\s]*([^\n\r]+)',
+        r'(?:TELEFON|PHONE)[:\s]*([^\n\r]+)', 
+        r'(?:E[-\s]?POSTA|EMAIL)[:\s]*([^\n\r]+)',
+        r'(?:RAPOR|REPORT)\s*(?:NO|NUMBER)[:\s]*([^\n\r]+)',
+        r'(?:TARİH|DATE)[:\s]*([^\n\r]+)'
+    ]
+    
+    general_fields = {}
+    for pattern in general_info_patterns:
+        matches = re.findall(pattern, text_content, re.IGNORECASE)
+        if matches:
+            field_name = pattern.split('?:')[1].split(')')[0] if '?:' in pattern else 'field'
+            general_fields[field_name.lower()] = matches[0] if isinstance(matches[0], str) else str(matches[0])
+    
+    # Ekipman bilgileri detection  
+    equipment_patterns = [
+        r'(?:MARKA|BRAND)[:\s]*([^\n\r]+)',
+        r'(?:MODEL|TİP)[:\s]*([^\n\r]+)',
+        r'(?:SERİ|SERIAL)\s*(?:NO|NUMBER)[:\s]*([^\n\r]+)',
+        r'(?:İMAL|MANUFACTURING)\s*(?:YILI|YEAR)[:\s]*([^\n\r]+)',
+        r'(?:KAPASİTE|CAPACITY)[:\s]*([^\n\r]+)'
+    ]
+    
+    equipment_fields = {}
+    for pattern in equipment_patterns:
+        matches = re.findall(pattern, text_content, re.IGNORECASE)
+        if matches:
+            field_name = pattern.split('?:')[1].split(')')[0] if '?:' in pattern else 'field'
+            equipment_fields[field_name.lower()] = matches[0] if isinstance(matches[0], str) else str(matches[0])
+    
+    # Categories dict oluştur
     categories_dict = {}
-    categories_list = []
-    
     for item in control_items:
         category = item["category"]
         if category not in categories_dict:
             categories_dict[category] = {
-                "name": f"KATEGORI {category}",
+                "name": category,  # Sadece harf
                 "items": []
             }
         categories_dict[category]["items"].append(item)
     
-    # Create categories list
-    category_names = {
-        'A': 'A', 'B': 'B', 'C': 'C', 'D': 'D', 
-        'E': 'E', 'F': 'F', 'G': 'G', 'H': 'H'
-    }
-    
+    # Final categories list
+    final_categories = []
     for category_code in sorted(categories_dict.keys()):
-        categories_list.append({
+        final_categories.append({
             "code": category_code,
-            "name": category_names.get(category_code, f"KATEGORI {category_code}"),
+            "name": category_code,  # Sadece harf - sınırlama yok
             "items": categories_dict[category_code]["items"]
         })
     
-    # Build final template data with universal structure
+    # TEMPLATE DATA - DYNAMIC STRUCTURE!
     template_data = {
         "name": template_name,
         "equipment_type": equipment_type,
         "template_type": template_type,
-        "description": f"{equipment_type} periyodik muayene {template_type.lower()} template - PDF'den parse edildi", 
-        "parsed_from": "PDF",
+        "description": f"{equipment_type} muayene formu - PDF'den dinamik parse edildi ({len(control_items)} item)",
+        "parsed_from": "PDF_DYNAMIC",
         "parse_date": datetime.utcnow().isoformat(),
-        "categories": categories_list,
+        "categories": final_categories,
         "is_active": True,
         "total_items": len(control_items),
         
-        # Universal Template Structure
-        "general_info": {
+        # DYNAMIC UNIVERSAL STRUCTURE
+        "general_info": general_fields if general_fields else {
             "company_name": {"label": "Firma Adı", "required": True},
-            "inspection_address": {"label": "Muayene adresi", "required": True},
-            "phone": {"label": "Telefon", "required": False},
-            "email": {"label": "E-posta", "required": False},
-            "periodic_control_date": {"label": "Periyodik Kontrol Tarihi", "required": True},
-            "report_date": {"label": "Rapor Tarihi", "required": True},
-            "report_no": {"label": "Rapor No", "required": True}
+            "inspection_address": {"label": "Muayene Adresi", "required": True}
+        },
+        
+        "equipment_info": equipment_fields if equipment_fields else {
+            "brand": {"label": "Marka", "required": True},
+            "model": {"label": "Model", "required": True},
+            "serial_no": {"label": "Seri No", "required": True}
         },
         
         "measurement_devices": [
-            {"label": "Cihaz Adı", "required": True},
-            {"label": "Cihaz Markası", "required": True},
-            {"label": "Cihaz Kodu/Seri No", "required": True},
+            {"label": "Ölçüm Cihazı", "required": True},
             {"label": "Kalibrasyon Tarihi", "required": True}
         ],
         
-        "equipment_info": {
-            "brand": {"label": "Markası", "required": True},
-            "type_model": {"label": "Tipi/Modeli", "required": True},
-            "serial_no": {"label": "Seri no", "required": True},
-            "manufacturing_year": {"label": "İmal yılı", "required": True},
-            "lifting_capacity": {"label": "Kaldırma Kapasitesi (kg)", "required": True}
-        },
-        
-        "test_values": {
-            "static_test_load": {"label": "Statik Test Yükü (Kg)", "required": False},
-            "dynamic_test_load": {"label": "Dinamik Test Yükü (Kg)", "required": False}
-        },
-        
+        "test_values": {},
         "control_items": control_items,
         "categories_dict": categories_dict,
-        
-        "test_experiments": [
-            {"id": 51, "text": "Test, deney ve muayene kriterleri", "required": True}
-        ],
-        
-        "defect_explanations": "Tespit edilen kusurların detaylı açıklaması",
-        "notes": "Ek notlar ve açıklamalar", 
-        "result_opinion": "Yukarıda teknik özellikleri belirtilen ekipmanın kullanılması UYGUNDIR/SAKINCALIDIR.",
+        "test_experiments": [],
+        "defect_explanations": "Kusur açıklamaları",
+        "notes": "Notlar",
+        "result_opinion": "Sonuç ve kanaat",
         
         "inspector_info": {
-            "name": {"label": "Adı Soyadı", "required": True},
-            "title": {"label": "Unvanı", "required": True},
+            "name": {"label": "Muayene Personeli", "required": True},
             "signature": {"label": "İmza", "required": True, "type": "signature"}
         },
         
         "company_official": {
-            "name": {"label": "Adı Soyadı", "required": True},
-            "title": {"label": "Görevi", "required": True},
+            "name": {"label": "Firma Yetkilisi", "required": True},
             "signature": {"label": "İmza", "required": True, "type": "signature"}
         }
     }
     
-    print(f"DEBUG: PDF template created: {template_name} with {len(control_items)} items")
+    print(f"DEBUG: DYNAMIC template created:")
+    print(f"  - Name: {template_name}")
+    print(f"  - Equipment: {equipment_type}")
+    print(f"  - Items: {len(control_items)}")
+    print(f"  - Categories: {sorted(categories_dict.keys())}")
+    print(f"  - General fields: {len(general_fields)}")
+    print(f"  - Equipment fields: {len(equipment_fields)}")
+    
     return template_data
 
 @app.post("/api/equipment-templates/upload")

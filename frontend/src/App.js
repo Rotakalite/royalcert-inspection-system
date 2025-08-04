@@ -214,6 +214,21 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [showCustomerManagement, setShowCustomerManagement] = useState(false);
   const [showInspectionPlanning, setShowInspectionPlanning] = useState(false);
+  
+  // User Management States
+  const [showUserForm, setShowUserForm] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordModalUser, setPasswordModalUser] = useState(null);
+  const [userFormData, setUserFormData] = useState({
+    username: '',
+    email: '',
+    full_name: '',
+    role: 'denetci',
+    password: '',
+    confirm_password: '',
+    is_active: true
+  });
 
   useEffect(() => {
     fetchStats();

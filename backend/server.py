@@ -1027,10 +1027,30 @@ async def initialize_caraskal_template(current_user: User = Depends(require_role
 
 @app.post("/api/inspections", response_model=Inspection)
 async def create_inspection(inspection: InspectionCreate, current_user: User = Depends(require_role(UserRole.PLANLAMA_UZMANI))):
+    # Check for duplicate inspection (same customer + equipment combination)
+    equipment_serial = inspection.equipment_info.get("serial_number")
+    equipment_type = inspection.equipment_info.get("equipment_type")
+    
+    if equipment_serial and equipment_type:
+        # Check for existing inspection with same customer and equipment
+        existing_inspection = await db.inspections.find_one({
+            "customer_id": inspection.customer_id,
+            "equipment_info.serial_number": equipment_serial,
+            "equipment_info.equipment_type": equipment_type,
+            "status": {"$in": ["beklemede", "devam_ediyor", "rapor_yazildi"]}  # Only check active inspections
+        })
+        
+        if existing_inspection:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"An active inspection already exists for this customer and equipment (Serial: {equipment_serial}, Type: {equipment_type})"
+            )
+    
     inspection_dict = inspection.dict()
     inspection_dict["id"] = str(uuid.uuid4())
     inspection_dict["created_by"] = current_user.id
     inspection_dict["created_at"] = datetime.utcnow()
+    inspection_dict["updated_at"] = datetime.utcnow()
     inspection_dict["status"] = "beklemede"
     
     await db.inspections.insert_one(inspection_dict)

@@ -3375,9 +3375,9 @@ const DynamicInspectionForm = ({ inspectionId, onBack, onSave }) => {
       </div>
     </div>
   );
-</new_str>
+};
 
-      {/* Additional Info Section */}
+// Phase 6.1: Inspector Dashboard Components
       <div className="bg-white rounded-xl shadow-sm">
         <div className="px-6 py-4 border-b border-gray-200 bg-yellow-50">
           <h2 className="text-lg font-semibold text-yellow-900">Ek Bilgiler</h2>

@@ -175,10 +175,82 @@ const SimpleTemplateBuilder = ({ isOpen, onClose, onSave }) => {
       }))
     }));
 
+    // FORM BÖLÜMLERINI EKLE - BU ÖNEMLİ!
     const finalTemplate = {
       ...templateData,
       categories: updatedCategories,
-      total_items: getTotalItems()
+      total_items: getTotalItems(),
+      
+      // Universal Template Structure - Form bölümleri
+      general_info: {
+        company_name: { label: 'Firma Adı', required: true },
+        inspection_address: { label: 'Muayene adresi', required: true },
+        phone: { label: 'Telefon', required: false },
+        email: { label: 'E-posta', required: false },
+        periodic_control_date: { label: 'Periyodik Kontrol Tarihi', required: true },
+        team_control_date: { label: 'Takım Kontrol Tarihi', required: false },
+        next_periodic_date: { label: 'Bir Sonraki Periyodik Kontrol Tarihi', required: true },
+        report_date: { label: 'Rapor Tarihi', required: true },
+        report_no: { label: 'Rapor No', required: true },
+        control_start_time: { label: 'Kontrol Başlangıç Saati', required: false },
+        control_end_time: { label: 'Kontrol Bitiş Saati', required: false },
+        isg_agreement_id: { label: 'İSG-Kâtip sözleşme ID', required: false },
+        work_permit_no: { label: 'İşyeri SGK Sicil No', required: false },
+        control_method: { label: 'Periyodik Kontrol Metodu', required: false }
+      },
+      
+      measurement_devices: [
+        { label: 'Cihaz Adı', required: true },
+        { label: 'Cihaz Markası', required: true },
+        { label: 'Cihaz Kodu/Seri No', required: true },
+        { label: 'Kalibrasyon Tarihi', required: true }
+      ],
+      
+      equipment_info: {
+        brand: { label: 'Markası', required: true },
+        type_model: { label: 'Tipi/Modeli', required: true },
+        serial_no: { label: 'Seri no', required: true },
+        manufacturing_year: { label: 'İmal yılı', required: true },
+        forklift_type: { label: 'Forklift Tipi', options: ['İçten Yanmalı', 'Akülü'], required: true },
+        usage_location: { label: 'Kullanım yeri / amacı', required: false },
+        fuel_type: { label: 'Yakıt türü', required: false },
+        fork_length: { label: 'Çatal kollarının uzunluğu (mm)', required: false },
+        fork_width: { label: 'Çatal kollarının genişliği (mm)', required: false },
+        lifting_capacity: { label: 'Kaldırma Kapasitesi (kg)', required: true },
+        lifting_height: { label: 'Kaldırma yüksekliği (mm)', required: false },
+        load_center_distance: { label: 'Yük merkezi mesafesi (mm)', required: false },
+        wheel_type: { label: 'Tekerlek tipi', required: false }
+      },
+      
+      test_values: {
+        min_annual_test_date: { label: 'Azami Yılda Bir Yapılan Son Test Tarihi', required: false },
+        max_three_year_test_date: { label: 'Azami Üç Yılda Bir Yapılan Son Test Tarihi', required: false },
+        static_test_load: { label: 'Statik Test Yükü (Kg)', required: false },
+        dynamic_test_load: { label: 'Dinamik Test Yükü (Kg)', required: false },
+        test_load: { label: 'Test Yükü (Kg)', required: false }
+      },
+      
+      test_experiments: [
+        { id: 51, text: 'Forkliftin yüksüz durumda mekanik dayanımı', required: true },
+        { id: 52, text: 'Forkliftin ... nin yük merkezinde, ... nin yükselikte, ... kg nominal yükte mekanik dayanımı (kaldırma silindirleri için)', required: true },  
+        { id: 53, text: 'Forkliftin 2500 mm yükselikte ... nin yük merkezinde ... kg yükte mekanik dayanımı (eğim tipi silindirleri için)', required: true }
+      ],
+      
+      defect_explanations: 'Tespit edilen kusurların detaylı açıklaması',
+      notes: 'Ek notlar ve açıklamalar',
+      result_opinion: 'Yukarıda teknik özellikleri belirtilen ekipmanın kullanılması UYGUNDIR/SAKINCALIDIR.',
+      
+      inspector_info: {
+        name: { label: 'Adı Soyadı', required: true },
+        title: { label: 'Unvanı', required: true },
+        signature: { label: 'İmza', required: true, type: 'signature' }
+      },
+      
+      company_official: {
+        name: { label: 'Adı Soyadı', required: true },  
+        title: { label: 'Görevi', required: true },
+        signature: { label: 'İmza', required: true, type: 'signature' }
+      }
     };
 
     onSave(finalTemplate);

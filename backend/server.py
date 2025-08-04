@@ -908,6 +908,48 @@ async def save_inspection_form(
     updated_inspection = await db.inspections.find_one({"id": inspection_id})
     return {"message": "Form saved successfully", "inspection": Inspection(**updated_inspection)}
 
+@app.put("/api/inspections/{inspection_id}/form")
+async def update_inspection_form(
+    inspection_id: str,
+    form_data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Update inspection form data with enhanced Phase 6.2 & 6.3 features"""
+    # Check authorization
+    query = {"id": inspection_id}
+    if current_user.role == UserRole.DENETCI:
+        query["inspector_id"] = current_user.id
+    
+    inspection = await db.inspections.find_one(query)
+    if not inspection:
+        raise HTTPException(status_code=404, detail="Inspection not found")
+    
+    # Prepare update data
+    update_data = {
+        "report_data": {
+            "form_data": form_data.get("form_data", {}),
+            "general_info": form_data.get("general_info", {}),
+            "equipment_info": form_data.get("equipment_info", {}),
+            "photos": form_data.get("photos", {}),
+            "is_draft": form_data.get("is_draft", True),
+            "completion_percentage": form_data.get("completion_percentage", 0),
+            "last_saved": form_data.get("last_saved", datetime.utcnow().isoformat()),
+            "saved_by": current_user.id
+        },
+        "updated_at": datetime.utcnow()
+    }
+    
+    # If not draft, update status and completion time
+    if not form_data.get("is_draft", True):
+        update_data["status"] = "rapor_yazildi"
+        update_data["completed_at"] = form_data.get("completed_at", datetime.utcnow().isoformat())
+    
+    await db.inspections.update_one({"id": inspection_id}, {"$set": update_data})
+    
+    # Get updated inspection
+    updated_inspection = await db.inspections.find_one({"id": inspection_id})
+    return {"message": "Form updated successfully", "inspection": Inspection(**updated_inspection)}
+
 @app.get("/api/equipment-templates/{equipment_type}/form-structure")
 async def get_equipment_form_structure(equipment_type: str, current_user: User = Depends(get_current_user)):
     """Get form structure for specific equipment type"""

@@ -1935,73 +1935,59 @@ const CustomerManagement = ({ onBack }) => {
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Ekipman Seçimi</h2>
             <div className="space-y-4">
-              {/* Group templates by equipment_type to avoid duplicates */}
-              {(() => {
-                // Create grouped equipment types
-                const groupedEquipments = {};
-                equipmentTemplates.forEach(template => {
-                  const equipmentType = template.equipment_type;
-                  if (!groupedEquipments[equipmentType]) {
-                    groupedEquipments[equipmentType] = {
-                      equipment_type: equipmentType,
-                      id: template.id, // Use first template's ID as reference
-                      description: equipmentType + " ekipmanı için muayene sistemi",
-                      templates: []
-                    };
-                  }
-                  groupedEquipments[equipmentType].templates.push(template);
-                });
-
-                return Object.values(groupedEquipments).map((equipmentGroup) => {
-                  // Check if any template from this equipment type is selected
-                  const isSelected = formData.equipments.some(eq => 
-                    equipmentGroup.templates.some(t => t.id === eq.template_id)
-                  );
-                  const selectedEquipment = formData.equipments.find(eq => 
-                    equipmentGroup.templates.some(t => t.id === eq.template_id)
-                  );
-                  
-                  return (
-                    <div key={equipmentGroup.equipment_type} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex items-center mb-3">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={(e) => {
-                            // When selecting equipment type, use the FORM template ID (not REPORT)
-                            const formTemplate = equipmentGroup.templates.find(t => t.template_type === 'FORM') || equipmentGroup.templates[0];
-                            handleEquipmentChange(formTemplate.id, e.target.checked);
-                          }}
-                          className="mr-3"
-                        />
-                        <div>
-                          <h3 className="font-medium text-gray-900">{equipmentGroup.equipment_type}</h3>
-                          <p className="text-sm text-gray-500">{equipmentGroup.description}</p>
-                          <p className="text-xs text-gray-400">
-                            {equipmentGroup.templates.length > 1 
-                              ? equipmentGroup.templates.filter(t => t.template_type === 'FORM').length + " kontrol formu + " + equipmentGroup.templates.filter(t => t.template_type === 'REPORT').length + " rapor template'i"
-                              : '1 template'}
-                          </p>
-                        </div>
+              {/* Create unique equipment types list to avoid duplicates */}
+              {Array.from(new Set(equipmentTemplates.map(t => t.equipment_type))).map((equipmentType) => {
+                // Find the FORM template for this equipment type (preferred for selection)
+                const formTemplate = equipmentTemplates.find(t => t.equipment_type === equipmentType && t.template_type === 'FORM');
+                const template = formTemplate || equipmentTemplates.find(t => t.equipment_type === equipmentType);
+                
+                if (!template) return null;
+                
+                const isSelected = formData.equipments.some(eq => 
+                  equipmentTemplates.some(t => t.id === eq.template_id && t.equipment_type === equipmentType)
+                );
+                const selectedEquipment = formData.equipments.find(eq => 
+                  equipmentTemplates.some(t => t.id === eq.template_id && t.equipment_type === equipmentType)
+                );
+                
+                const relatedTemplates = equipmentTemplates.filter(t => t.equipment_type === equipmentType);
+                const formCount = relatedTemplates.filter(t => t.template_type === 'FORM').length;
+                const reportCount = relatedTemplates.filter(t => t.template_type === 'REPORT').length;
+                
+                return (
+                  <div key={equipmentType} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center mb-3">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => handleEquipmentChange(template.id, e.target.checked)}
+                        className="mr-3"
+                      />
+                      <div>
+                        <h3 className="font-medium text-gray-900">{equipmentType}</h3>
+                        <p className="text-sm text-gray-500">{equipmentType} ekipmanı için muayene sistemi</p>
+                        <p className="text-xs text-gray-400">
+                          {relatedTemplates.length > 1 
+                            ? formCount + " kontrol formu + " + reportCount + " rapor template'i"
+                            : "1 template"}
+                        </p>
                       </div>
-                      
-                      {isSelected && (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 ml-6 pt-3 border-t border-gray-100">
-                          <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1">
-                              Seri Numarası
-                            </label>
-                            <input
-                              type="text"
-                              value={selectedEquipment?.serial_number || ''}
-                              onChange={(e) => {
-                                const formTemplate = equipmentGroup.templates.find(t => t.template_type === 'FORM') || equipmentGroup.templates[0];
-                                handleEquipmentDetailChange(formTemplate.id, 'serial_number', e.target.value);
-                              }}
-                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-red-900"
-                              placeholder="Seri numarası"
-                            />
-                          </div>
+                    </div>
+                    
+                    {isSelected && (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 ml-6 pt-3 border-t border-gray-100">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Seri Numarası
+                          </label>
+                          <input
+                            type="text"
+                            value={selectedEquipment?.serial_number || ''}
+                            onChange={(e) => handleEquipmentDetailChange(template.id, 'serial_number', e.target.value)}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-red-900"
+                            placeholder="Seri numarası"
+                          />
+                        </div>
                         <div>
                           <label className="block text-xs font-medium text-gray-700 mb-1">
                             Kapasite
@@ -2009,10 +1995,7 @@ const CustomerManagement = ({ onBack }) => {
                           <input
                             type="text"
                             value={selectedEquipment?.capacity || ''}
-                            onChange={(e) => {
-                              const formTemplate = equipmentGroup.templates.find(t => t.template_type === 'FORM') || equipmentGroup.templates[0];
-                              handleEquipmentDetailChange(formTemplate.id, 'capacity', e.target.value);
-                            }}
+                            onChange={(e) => handleEquipmentDetailChange(template.id, 'capacity', e.target.value)}
                             className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-red-900"
                             placeholder="Kapasite"
                           />
@@ -2024,10 +2007,7 @@ const CustomerManagement = ({ onBack }) => {
                           <input
                             type="text"
                             value={selectedEquipment?.manufacturing_year || ''}
-                            onChange={(e) => {
-                              const formTemplate = equipmentGroup.templates.find(t => t.template_type === 'FORM') || equipmentGroup.templates[0];
-                              handleEquipmentDetailChange(formTemplate.id, 'manufacturing_year', e.target.value);
-                            }}
+                            onChange={(e) => handleEquipmentDetailChange(template.id, 'manufacturing_year', e.target.value)}
                             className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-red-900"
                             placeholder="İmalat yılı"
                           />
@@ -2036,7 +2016,7 @@ const CustomerManagement = ({ onBack }) => {
                     )}
                   </div>
                 );
-              })()}
+              })}
             </div>
           </div>
 

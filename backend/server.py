@@ -50,6 +50,7 @@ class UserRole(str):
     ADMIN = "admin"
     PLANLAMA_UZMANI = "planlama_uzmani" 
     DENETCI = "denetci"
+    TEKNIK_YONETICI = "teknik_yonetici"
 
 class User(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))

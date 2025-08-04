@@ -1386,8 +1386,9 @@ def parse_universal_template_structure(text: str, tables: list, equipment_type: 
     
     # Extract from tables directly - NO FILTERING
     for table in tables:
-        for row in table:
-            for cell_text in row:
+        for row in table.rows:  # FIXED: table.rows not table
+            for cell in row.cells:  # FIXED: row.cells not row
+                cell_text = cell.text.strip()
                 if cell_text:
                     # Check if it's a numbered item
                     import re

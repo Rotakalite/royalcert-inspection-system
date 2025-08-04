@@ -910,17 +910,24 @@ async def get_inspection_form(inspection_id: str, current_user: User = Depends(g
     logging.info(f"DEBUG: Template found for {equipment_type}: {template.get('name')}")
     logging.info(f"DEBUG: Template has {len(template.get('categories', []))} categories")
     
-    # Get all control items from all categories
+    # Get all control items from all categories - CRITICAL FIX 1
     all_control_items = []
+    print(f"CRITICAL DEBUG: Template has {len(template.get('categories', []))} categories")
     for category in template.get("categories", []):
         category_items = category.get("items", [])
         all_control_items.extend(category_items)
-        logging.info(f"DEBUG: Category {category.get('code')}: {len(category_items)} items")
+        print(f"CRITICAL DEBUG: Category {category.get('code')}: {len(category_items)} items")
     
-    logging.info(f"DEBUG: Total control items: {len(all_control_items)}")
+    print(f"CRITICAL DEBUG: Total control items: {len(all_control_items)}")
     if all_control_items:
         max_id = max(item.get('id', 0) for item in all_control_items)
-        logging.info(f"DEBUG: Max item ID: {max_id}")
+        print(f"CRITICAL DEBUG: Max item ID: {max_id}")
+        
+        # Show items 49-53 specifically
+        high_items = [item for item in all_control_items if item.get('id', 0) >= 49]
+        print(f"CRITICAL DEBUG: Items 49+: {len(high_items)}")
+        for item in high_items:
+            print(f"CRITICAL DEBUG: ID {item.get('id')}: {item.get('text', 'N/A')[:30]}...")
     
     # Get existing form data if any
     existing_data = inspection.get("report_data", {})

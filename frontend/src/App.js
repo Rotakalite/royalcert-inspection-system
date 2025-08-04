@@ -700,7 +700,7 @@ const Layout = ({ children }) => {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <h1 className="text-xl font-bold text-blue-600">RoyalCert</h1>
+                <h1 className="text-xl font-bold text-red-900">RoyalCert</h1>
               </div>
             </div>
             

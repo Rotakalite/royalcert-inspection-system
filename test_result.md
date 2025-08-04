@@ -150,7 +150,7 @@ backend:
     implemented: true
     working: false
     file: "/app/backend/server.py"
-    stuck_count: 3
+    stuck_count: 4
     priority: "high"
     needs_retesting: false
     status_history:

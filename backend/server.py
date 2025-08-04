@@ -95,11 +95,33 @@ class CustomerCreate(BaseModel):
     address: str
     equipments: List[Dict[str, Any]] = []
 
+class ControlItem(BaseModel):
+    id: int
+    text: str
+    category: str
+    input_type: str = "dropdown"  # dropdown, text, number
+    has_comment: bool = True
+    required: bool = True
+
+class EquipmentCategory(BaseModel):
+    code: str  # A, B, C, D, E, F, G, H
+    name: str
+    items: List[ControlItem]
+
 class EquipmentTemplate(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     equipment_type: str
-    categories: List[Dict[str, Any]]
+    description: str
+    categories: List[EquipmentCategory]
+    created_by: str
+    is_active: bool = True
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class EquipmentTemplateCreate(BaseModel):
+    equipment_type: str
+    description: str
+    categories: List[EquipmentCategory]
 
 class Inspection(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))

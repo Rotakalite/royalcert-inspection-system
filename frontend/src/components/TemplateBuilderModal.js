@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 
 const TemplateBuilderModal = ({ isOpen, onClose, onSave }) => {
+  const [activeBuilderTab, setActiveBuilderTab] = useState('basic');
   const [templateData, setTemplateData] = useState({
     name: '',
     equipment_type: '',

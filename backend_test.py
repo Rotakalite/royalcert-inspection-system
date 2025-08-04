@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Backend API Testing for RoyalCert Template Upload System - FORM and REPORT Types
-Tests the updated template upload system that handles FORM and REPORT types for the same equipment
-Focus: Testing Word document parsing with equipment_type and template_type separation
+Backend API Testing for RoyalCert Improved Word Parsing Algorithm
+Tests the improved Word document parsing algorithm that limits control items to reasonable numbers (max 50-60)
+Focus: Testing FORKLIFT document parsing with improved filtering and reasonable control item counts
 """
 
 import requests
@@ -16,6 +16,12 @@ from datetime import datetime
 BACKEND_URL = "https://405a5b7a-3c02-4793-9fcc-5203d2944620.preview.emergentagent.com/api"
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "admin123"
+
+# FORKLIFT Document URLs for testing
+FORKLIFT_DOCUMENTS = {
+    "FORKLIFT_MUAYENE_FORMU": "https://customer-assets.emergentagent.com/job_periodic-check/artifacts/y9b9lejo_RC-M-%C4%B0E-FR24_5%20FORKL%C4%B0FT%20MUAYENE%20FORMU.docx",
+    "FORKLIFT_MUAYENE_RAPORU": "https://customer-assets.emergentagent.com/job_periodic-check/artifacts/00vmxy69_RC-M-%C4%B0E-FR25_6%20FORKL%C4%B0FT%20MUAYENE%20RAPORU.docx"
+}
 
 class RoyalCertPDFReportingTester:
     def __init__(self):

@@ -1360,88 +1360,51 @@ def parse_word_document(file_content: bytes, filename: str) -> dict:
         raise HTTPException(status_code=400, detail=f"Failed to parse Word document: {str(e)}")
 
 def parse_universal_template_structure(text: str, tables: list, equipment_type: str) -> dict:
-    """Parse universal template structure from Word document text and tables"""
+    """Parse universal template structure from Word document text and tables - BIREBIR KOPYALA!"""
     
     print(f"DEBUG: Starting universal parsing for {equipment_type}")
     
     # Initialize template structure with placeholder functions
     structure = {
-        "general_info": {},  # Placeholder - will be implemented
-        "measurement_devices": [],  # Placeholder - will be implemented
-        "equipment_info": {},  # Placeholder - will be implemented
-        "test_values": {},  # Placeholder - will be implemented
+        "general_info": {},  
+        "measurement_devices": [],  
+        "equipment_info": {},  
+        "test_values": {},  
         "control_items": [],  # Will be populated below
         "categories": {},
-        "test_experiments": [],  # Placeholder - will be implemented
-        "defect_explanations": "",  # Placeholder - will be implemented
-        "notes": "",  # Placeholder - will be implemented
-        "result_opinion": "",  # Placeholder - will be implemented
-        "inspector_info": {},  # Placeholder - will be implemented
-        "company_official": {}  # Placeholder - will be implemented
+        "test_experiments": [],  
+        "defect_explanations": "",  
+        "notes": "",  
+        "result_opinion": "",  
+        "inspector_info": {},  
+        "company_official": {}  
     }
     
-    # Extract control items using existing logic
+    # BIREBIR KOPYALA - Extract control items WITHOUT ANY FILTERING!
     control_items = []
+    unique_items = {}  # Prevent duplicates only
     
-    # Look for numbered items (1., 2., 3., etc.) in text - FIXED PATTERN
-    item_pattern = r'(\d+)\.\s*(.+)'  # FIXED: Match anywhere in line, not just at start
-    matches = re.findall(item_pattern, text, re.MULTILINE)
+    # Extract from tables directly - NO FILTERING
+    for table in tables:
+        for row in table:
+            for cell_text in row:
+                if cell_text:
+                    # Check if it's a numbered item
+                    import re
+                    match = re.match(r'^(\d+)\.\s*(.+)', cell_text)
+                    if match:
+                        item_number = int(match.group(1))
+                        item_text = match.group(2).strip()
+                        
+                        # Only prevent exact duplicates - NO OTHER FILTERING!
+                        if item_number not in unique_items:
+                            unique_items[item_number] = item_text
     
-    # Smart filtering to get REAL control items only
-    valid_matches = []
-    seen_texts = set()  # Prevent duplicates
+    print(f"DEBUG: Found {len(unique_items)} unique numbered items - BIREBIR KOPYALA!")
     
-    for match in matches:
-        item_number = int(match[0])
-        item_text = match[1].strip()
-        
-        # Skip if item number is unreasonable - EXTENDED RANGE FOR ALL 53 ITEMS
-        if item_number < 1 or item_number > 60:  # Allow up to 60 to capture all 53 items
-            continue
-            
-        # Skip if item text is too short - RELAXED FOR REAL CONTROL ITEMS
-        if len(item_text) < 10:  # Reduced from 15 to 10 to avoid missing short but valid items
-            continue
-            
-        # Skip common headers and non-control text (SMART FILTERING)
-        skip_patterns = [
-            'GENEL', 'BİLGİLER', 'MUAYENE', 'KONTROL', 'ETİKET', 'TEST', 'FORM', 'RAPOR', 
-            'BAŞLIK', 'TABLE', 'DEĞER', 'DURUM', 'TARİH', 'NO', 'ADI', 'KODU', 'MARKASı',
-            'TİPİ', 'SERİ', 'İMAL', 'YIL', 'KAPASITE', 'YÜKSEKLIK', 'MESAFE', 'ÖLÇÜM',
-            'DEĞERLENDİRME', 'AÇIKLAMA', 'NOT'
-        ]
-        
-        # Skip if item text is primarily a header/label
-        if any(pattern in item_text.upper() for pattern in skip_patterns):
-            continue
-            
-        # Skip if text contains primarily numbers/codes/values (not control descriptions)  
-        if re.search(r'^\d+[.\-/\s]*\d*$', item_text.strip()):
-            continue
-            
-        # Skip repetitive or too similar texts
-        text_key = re.sub(r'\s+', ' ', item_text.lower())
-        if text_key in seen_texts:
-            continue
-        seen_texts.add(text_key)
-        
-        # Skip if text is primarily symbols or formatting
-        if len(re.sub(r'[^a-zA-ZğüşıöçĞÜŞİÖÇ]', '', item_text)) < 10:
-            continue
-        
-        # This looks like a REAL control item!
-        valid_matches.append((item_number, item_text))
-    
-    # Sort by item number (preserve original order)
-    valid_matches.sort(key=lambda x: x[0])
-    
-    print(f"DEBUG: Found {len(valid_matches)} valid control items after smart filtering")
-    
-    current_category = 'A'
-    
-    for match in valid_matches:
-        item_number = int(match[0])
-        item_text = match[1].strip()
+    # Convert to control items format
+    for item_number in sorted(unique_items.keys()):
+        item_text = unique_items[item_number]
         
         # Smart category determination - UPDATED FOR ALL 53 ITEMS
         if item_number <= 8:
@@ -1470,63 +1433,6 @@ def parse_universal_template_structure(text: str, tables: list, equipment_type: 
             "has_photo": True      # All items can have photos
         })
 
-    # FALLBACK: If no numbered items found, try smarter table parsing
-    if not control_items and tables:
-        print("DEBUG: No numbered items found, trying smart table parsing...")
-        item_id = 1
-        seen_texts = set()
-        
-        for table in tables:
-            for row in table:
-                for cell_text in row:
-                    # Smart table cell filtering for REAL control items - RELAXED FOR ALL 53 ITEMS
-                    if (len(cell_text) > 10 and len(cell_text) < 400 and  # RELAXED: Was 20, now 10 
-                        not any(x in cell_text.upper() for x in ['GENEL', 'BİLGİLER', 'MUAYENE', 'TEST', 'ETİKET', 
-                                                                 'KONTROL', 'FORM', 'RAPOR', 'TABLE', 'BAŞLIK',
-                                                                 'NO', 'ADI', 'KODU', 'DURUM', 'TARİH']) and
-                        not cell_text.upper().strip() in ['D', 'U', 'UD', 'U.Y'] and
-                        cell_text.count('.') < 10 and  # RELAXED: Was 5, now 10
-                        len(re.sub(r'[^a-zA-ZğüşıöçĞÜŞİÖÇ]', '', cell_text)) > 8):  # RELAXED: Was 15, now 8
-                        
-                        # Check for duplicates
-                        text_key = re.sub(r'\s+', ' ', cell_text.lower().strip())
-                        if text_key not in seen_texts:
-                            seen_texts.add(text_key)
-                            
-                            # Smart category assignment
-                            if item_id <= 12:
-                                current_category = 'A'
-                            elif item_id <= 20:
-                                current_category = 'B'
-                            elif item_id <= 27:
-                                current_category = 'C'
-                            elif item_id <= 35:
-                                current_category = 'D'
-                            elif item_id <= 42:
-                                current_category = 'E'
-                            elif item_id <= 48:
-                                current_category = 'F'
-                            elif item_id <= 55:
-                                current_category = 'G'
-                            else:
-                                current_category = 'H'
-                            
-                            control_items.append({
-                                "id": item_id,
-                                "text": cell_text.strip(),
-                                "category": current_category,
-                                "has_dropdown": True,
-                                "has_comment": True,
-                                "has_photo": True
-                            })
-                            item_id += 1
-                            
-                            # Reasonable limit - EXTENDED FOR ALL 53 ITEMS
-                            if item_id > 60:  # REDUCED: Was 80, now 60 to focus on 53 items
-                                break
-        
-        print(f"DEBUG: Table parsing found {len(control_items)} control items")
-    
     # Update structure with parsed control items
     structure["control_items"] = control_items
     
@@ -1573,7 +1479,7 @@ def parse_universal_template_structure(text: str, tables: list, equipment_type: 
     structure["categories"] = categories_list  # For backward compatibility
     structure["categories_dict"] = categories_dict  # New format
     
-    print(f"DEBUG: Parsed {len(control_items)} control items in {len(categories_dict)} categories")
+    print(f"DEBUG: Parsed {len(control_items)} control items in {len(categories_dict)} categories - BIREBIR KOPYALA COMPLETED!")
     
     return structure
 

@@ -206,6 +206,118 @@ const StatCard = ({ title, value, color, icon }) => (
   </div>
 );
 
+// Template Form Modal Component
+const TemplateFormModal = ({ onClose, onSave, editingTemplate }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    equipment_type: '',
+    description: '',
+    is_active: true
+  });
+
+  useEffect(() => {
+    if (editingTemplate) {
+      setFormData({
+        name: editingTemplate.name || '',
+        equipment_type: editingTemplate.equipment_type || '',
+        description: editingTemplate.description || '',
+        is_active: editingTemplate.is_active !== undefined ? editingTemplate.is_active : true
+      });
+    }
+  }, [editingTemplate]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave(formData);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold text-gray-900">
+              {editingTemplate ? 'Template Düzenle' : 'Yeni Template Ekle'}
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Template Adı *</label>
+            <input
+              type="text"
+              required
+              value={formData.name}
+              onChange={(e) => setFormData({...formData, name: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              placeholder="Template adı"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Ekipman Tipi *</label>
+            <input
+              type="text"
+              required
+              value={formData.equipment_type}
+              onChange={(e) => setFormData({...formData, equipment_type: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              placeholder="Ekipman tipi"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Açıklama</label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({...formData, description: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              placeholder="Template açıklaması"
+              rows="3"
+            />
+          </div>
+          
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              checked={formData.is_active}
+              onChange={(e) => setFormData({...formData, is_active: e.target.checked})}
+              className="mr-2"
+            />
+            <label className="text-sm text-gray-700">Aktif</label>
+          </div>
+          
+          <div className="flex justify-end space-x-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+            >
+              İptal
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2 bg-red-900 text-white rounded-md hover:bg-red-800"
+            >
+              {editingTemplate ? 'Güncelle' : 'Template Oluştur'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 const AdminDashboard = () => {
   const [stats, setStats] = useState({});
   const [users, setUsers] = useState([]);

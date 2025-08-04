@@ -431,8 +431,8 @@ class UniversalTemplateParserTester:
         # Overall results
         all_uploads_successful = all(upload_results.values())
         all_universal_fields_present = all(
-            result.get('all_present', False) 
-            for result in universal_field_results.values()
+            result.get('universal_fields', {}).get('all_present', False) 
+            for result in database_storage_results.values()
         )
         all_database_storage_working = all(
             result.get('retrieved', False) and result.get('universal_fields', {}).get('all_present', False)

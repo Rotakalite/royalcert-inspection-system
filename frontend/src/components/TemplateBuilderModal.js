@@ -190,7 +190,32 @@ const TemplateBuilderModal = ({ isOpen, onClose, onSave }) => {
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
-          {/* Template Basic Info */}
+          {/* Template Builder Tabs */}
+          <div className="border-b border-gray-200 mb-6">
+            <nav className="-mb-px flex space-x-8">
+              {[
+                { id: 'basic', name: 'Temel Bilgiler', icon: '📋' },
+                { id: 'general', name: 'Genel Bilgiler', icon: '🏢' },
+                { id: 'devices', name: 'Ölçüm Aletleri', icon: '🔧' },
+                { id: 'equipment', name: 'Ekipman Bilgileri', icon: '🚛' },
+                { id: 'tests', name: 'Test Değerleri', icon: '⚖️' },
+                { id: 'criteria', name: 'Kontrol Kriterleri', icon: '✅' },
+                { id: 'extra', name: 'Ek Bölümler', icon: '📄' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveBuilderTab(tab.id)}
+                  className={`py-2 px-4 border-b-2 font-medium text-sm ${
+                    activeBuilderTab === tab.id
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  {tab.icon} {tab.name}
+                </button>
+              ))}
+            </nav>
+          </div>
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">

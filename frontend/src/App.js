@@ -403,6 +403,8 @@ const AdminDashboard = () => {
         await api.post('/equipment-templates', templateData);
         alert('Template başarıyla oluşturuldu');
       }
+      setShowTemplateForm(false);
+      setEditingTemplate(null);
       fetchTemplates();
     } catch (error) {
       console.error('Template save error:', error);
@@ -413,11 +415,41 @@ const AdminDashboard = () => {
   const handleTemplateView = (template) => {
     // TODO: Implement template view functionality
     console.log('View template:', template);
+    alert(`${template.name} template'ini görüntüleme özelliği yakında eklenecek`);
   };
 
   const handleTemplateEdit = (template) => {
     setEditingTemplate(template);
     setShowTemplateForm(true);
+  };
+
+  const handleTemplateToggle = async (template) => {
+    try {
+      await api.put(`/equipment-templates/${template.id}`, {
+        ...template,
+        is_active: !template.is_active
+      });
+      alert(`Template ${!template.is_active ? 'aktif' : 'pasif'} duruma getirildi`);
+      fetchTemplates();
+    } catch (error) {
+      console.error('Template toggle error:', error);
+      alert('Template durumu değiştirme hatası: ' + (error.response?.data?.detail || 'Bilinmeyen hata'));
+    }
+  };
+
+  const handleTemplateDelete = async (template) => {
+    if (!window.confirm(`${template.name} template'ini silmek istediğinizden emin misiniz?`)) {
+      return;
+    }
+
+    try {
+      await api.delete(`/equipment-templates/${template.id}`);
+      alert('Template başarıyla silindi');
+      fetchTemplates();
+    } catch (error) {
+      console.error('Template deletion error:', error);
+      alert('Template silme hatası: ' + (error.response?.data?.detail || 'Bilinmeyen hata'));
+    }
   };
 
   const handleTemplateToggle = async (template) => {

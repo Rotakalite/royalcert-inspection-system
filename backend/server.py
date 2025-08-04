@@ -1416,7 +1416,13 @@ def parse_word_document(file_content: bytes, filename: str) -> dict:
         "ASANSÖR": ["ASANSÖR", "ASANSOR", "ELEVATöR", "LIFT"],
         "PLATFORM": ["PLATFORM", "PLATFORMU"],
         "KOMPRESÖR": ["KOMPRESÖR", "KOMPRESOR", "COMPRESSOR"],
-        "JENERATÖR": ["JENERATÖR", "GENERATOR", "GENERATöR"]
+        "JENERATÖR": ["JENERATÖR", "GENERATOR", "GENERATöR"],
+        "YANGIN_SÖNDÜRME": ["YANGIN", "SÖNDÜRME", "FIRE", "SPRINKLER", "SULU"],
+        "KAZAN": ["KAZAN", "BOILER", "BUHAR"],
+        "TANK": ["TANK", "DEPO", "REZERVUAR"],
+        "BASINCLI_KABI": ["BASINCLI", "KABI", "PRESSURE", "VESSEL"],
+        "KALDIRMA": ["KALDIRMA", "LIFTING", "HOIST"],
+        "TESISAT": ["TESISAT", "SISTEM", "SYSTEM", "INSTALLATION"]
     }
     
     for eq_type, keywords in equipment_keywords.items():

@@ -374,7 +374,7 @@ const TemplateUploadModal = ({ onClose, selectedFiles, onFileSelect, onSingleUpl
                     Dosya seçmek için tıklayın veya sürükleyip bırakın
                   </span>
                   <span className="mt-1 block text-xs text-gray-500">
-                    Word dosyaları (.docx, .doc)
+                    Word dosyaları (.docx, .doc) ve PDF dosyaları (.pdf)
                   </span>
                 </label>
                 <input

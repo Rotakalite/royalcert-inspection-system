@@ -907,20 +907,20 @@ async def get_inspection_form(inspection_id: str, current_user: User = Depends(g
     if not template:
         raise HTTPException(status_code=404, detail="Equipment template not found")
     
-    print(f"DEBUG: Template found for {equipment_type}: {template.get('name')}")
-    print(f"DEBUG: Template has {len(template.get('categories', []))} categories")
+    logging.info(f"DEBUG: Template found for {equipment_type}: {template.get('name')}")
+    logging.info(f"DEBUG: Template has {len(template.get('categories', []))} categories")
     
     # Get all control items from all categories
     all_control_items = []
     for category in template.get("categories", []):
         category_items = category.get("items", [])
         all_control_items.extend(category_items)
-        print(f"DEBUG: Category {category.get('code')}: {len(category_items)} items")
+        logging.info(f"DEBUG: Category {category.get('code')}: {len(category_items)} items")
     
-    print(f"DEBUG: Total control items: {len(all_control_items)}")
+    logging.info(f"DEBUG: Total control items: {len(all_control_items)}")
     if all_control_items:
         max_id = max(item.get('id', 0) for item in all_control_items)
-        print(f"DEBUG: Max item ID: {max_id}")
+        logging.info(f"DEBUG: Max item ID: {max_id}")
     
     # Get existing form data if any
     existing_data = inspection.get("report_data", {})

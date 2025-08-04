@@ -611,6 +611,25 @@ async def get_equipment_form_structure(equipment_type: str, current_user: User =
     
     return form_structure
 
+@app.post("/api/equipment-templates/initialize")
+async def initialize_caraskal_template(current_user: User = Depends(require_role(UserRole.ADMIN))):
+    """Initialize Caraskal template in database"""
+    # Check if Caraskal template already exists
+    existing = await db.equipment_templates.find_one({"equipment_type": "CARASKAL"})
+    if existing:
+        return {"message": "Caraskal template already exists"}
+    
+    caraskal_data = get_caraskal_template()
+    template_dict = caraskal_data.copy()
+    template_dict["id"] = str(uuid.uuid4())
+    template_dict["created_by"] = current_user.id
+    template_dict["is_active"] = True
+    template_dict["created_at"] = datetime.utcnow()
+    template_dict["updated_at"] = datetime.utcnow()
+    
+    await db.equipment_templates.insert_one(template_dict)
+    return {"message": "Caraskal template initialized successfully"}
+
 # ===================== INSPECTION MANAGEMENT =====================
 
 @app.post("/api/inspections", response_model=Inspection)

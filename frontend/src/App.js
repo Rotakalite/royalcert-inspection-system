@@ -890,6 +890,12 @@ const DynamicInspectionForm = ({ inspectionId, onBack, onSave }) => {
   );
 };
 
+const DenetciDashboard = () => {
+  const [stats, setStats] = useState({});
+  const [inspections, setInspections] = useState([]);
+  const [selectedInspection, setSelectedInspection] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+
   useEffect(() => {
     fetchStats();
     fetchInspections();
@@ -922,6 +928,29 @@ const DynamicInspectionForm = ({ inspectionId, onBack, onSave }) => {
       console.error('Status update error:', error);
     }
   };
+
+  const openInspectionForm = (inspection) => {
+    setSelectedInspection(inspection);
+    setShowForm(true);
+  };
+
+  const closeInspectionForm = () => {
+    setShowForm(false);
+    setSelectedInspection(null);
+    fetchStats();
+    fetchInspections();
+  };
+
+  // Show inspection form
+  if (showForm && selectedInspection) {
+    return (
+      <DynamicInspectionForm 
+        inspectionId={selectedInspection.id}
+        onBack={closeInspectionForm}
+        onSave={closeInspectionForm}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -997,27 +1026,59 @@ const DynamicInspectionForm = ({ inspectionId, onBack, onSave }) => {
                   {/* Action Buttons */}
                   <div className="mt-3 flex space-x-2">
                     {inspection.status === 'beklemede' && (
-                      <button
-                        onClick={() => handleStatusUpdate(inspection.id, 'devam_ediyor')}
-                        className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
-                      >
-                        Denetime Başla
-                      </button>
+                      <>
+                        <button
+                          onClick={() => handleStatusUpdate(inspection.id, 'devam_ediyor')}
+                          className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
+                        >
+                          Denetime Başla
+                        </button>
+                        <button
+                          onClick={() => openInspectionForm(inspection)}
+                          className="px-3 py-1 bg-green-600 text-white text-sm rounded-md hover:bg-green-700"
+                        >
+                          Formu Aç
+                        </button>
+                      </>
                     )}
                     {inspection.status === 'devam_ediyor' && (
-                      <button
-                        onClick={() => handleStatusUpdate(inspection.id, 'rapor_yazildi')}
-                        className="px-3 py-1 bg-green-600 text-white text-sm rounded-md hover:bg-green-700"
-                      >
-                        Raporu Teslim Et
-                      </button>
+                      <>
+                        <button
+                          onClick={() => openInspectionForm(inspection)}
+                          className="px-3 py-1 bg-red-900 text-white text-sm rounded-md hover:bg-red-800"
+                        >
+                          Formu Doldur
+                        </button>
+                        <button
+                          onClick={() => handleStatusUpdate(inspection.id, 'rapor_yazildi')}
+                          className="px-3 py-1 bg-green-600 text-white text-sm rounded-md hover:bg-green-700"
+                        >
+                          Raporu Teslim Et
+                        </button>
+                      </>
                     )}
                     {inspection.status === 'reddedildi' && (
+                      <>
+                        <button
+                          onClick={() => openInspectionForm(inspection)}
+                          className="px-3 py-1 bg-red-900 text-white text-sm rounded-md hover:bg-red-800"
+                        >
+                          Formu Düzenle
+                        </button>
+                        <button
+                          onClick={() => handleStatusUpdate(inspection.id, 'devam_ediyor')}
+                          className="px-3 py-1 bg-orange-600 text-white text-sm rounded-md hover:bg-orange-700"
+                        >
+                          Düzeltmeye Başla
+                        </button>
+                      </>
+                    )}
+                    {(inspection.status === 'rapor_yazildi' || inspection.status === 'onaylandi') && (
                       <button
-                        onClick={() => handleStatusUpdate(inspection.id, 'devam_ediyor')}
-                        className="px-3 py-1 bg-orange-600 text-white text-sm rounded-md hover:bg-orange-700"
+                        onClick={() => openInspectionForm(inspection)}
+                        className="px-3 py-1 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700"
                       >
-                        Düzeltmeye Başla
+                        Formu Görüntüle
                       </button>
                     )}
                   </div>

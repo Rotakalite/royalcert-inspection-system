@@ -206,9 +206,16 @@ class CriticalFixesTester:
             if success:
                 print(f"\n🎉 CRITICAL FIX 1 SUCCESS: Inspector form question cutting issue RESOLVED!")
                 print(f"   ✅ All 53 questions are properly categorized")
-                print(f"   ✅ Questions 43-53 are in Category G as expected")
+                print(f"   ✅ Questions 41-48 are in Category F as expected")
+                print(f"   ✅ Questions 49-53 are in Category G as expected")
             else:
                 print(f"\n❌ CRITICAL FIX 1 FAILED: Inspector form question cutting issue NOT resolved!")
+                if problematic_questions:
+                    print(f"   ❌ Problematic questions: {problematic_questions}")
+                if not questions_41_48_in_F:
+                    print(f"   ❌ Questions 41-48 not properly in Category F")
+                if not questions_49_53_in_G:
+                    print(f"   ❌ Questions 49-53 not properly in Category G")
                 
             return success
             

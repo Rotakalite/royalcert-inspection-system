@@ -1364,11 +1364,20 @@ def parse_word_document(file_content: bytes, filename: str) -> dict:
             })
         
         # Create template structure
+        # Generate template name based on equipment type and template type
+        if template_type == "REPORT":
+            template_name = f"{equipment_type} MUAYENE RAPORU"
+            description = f"{equipment_type} ekipmanı için otomatik PDF rapor template'i"
+        else:
+            template_name = f"{equipment_type} MUAYENE FORMU"
+            description = f"{equipment_type} ekipmanı için denetim kontrol formu"
+        
         template_data = {
+            "name": template_name,
             "equipment_type": equipment_type,
-            "description": f"Auto-parsed from {filename}",
+            "template_type": template_type,  # FORM or REPORT
+            "description": description,
             "categories": categories_list,
-            "name": filename.replace('.docx', '').replace('_', ' ').upper(),
             "total_items": len(control_items),
             "parsed_from": filename,
             "parse_date": datetime.utcnow(),

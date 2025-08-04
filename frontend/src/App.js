@@ -344,6 +344,9 @@ const AdminDashboard = () => {
   // Template Management States
   const [showTemplateForm, setShowTemplateForm] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState(null);
+  const [uploadingTemplate, setUploadingTemplate] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState([]);
 
   useEffect(() => {
     fetchStats();

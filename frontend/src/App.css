@@ -2,9 +2,40 @@
 @tailwind components;
 @tailwind utilities;
 
+/* RoyalCert Brand Colors */
+:root {
+  --royal-red: #B71C1C;
+  --royal-gray-dark: #424242;
+  --royal-gray-light: #757575;
+  --royal-red-light: #FFEBEE;
+}
+
 /* Custom styles for RoyalCert */
 .App {
   min-height: 100vh;
+}
+
+/* Brand Button Styles */
+.btn-brand-primary {
+  @apply bg-red-900 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-800 focus:ring-2 focus:ring-red-900 focus:ring-offset-2 transition duration-200;
+}
+
+.btn-brand-secondary {
+  @apply bg-royal-800 text-white px-4 py-2 rounded-lg font-medium hover:bg-royal-700 focus:ring-2 focus:ring-royal-800 focus:ring-offset-2 transition duration-200;
+}
+
+/* Brand Badge Styles */
+.badge-brand-primary {
+  @apply bg-red-100 text-red-900;
+}
+
+.badge-brand-secondary {
+  @apply bg-royal-100 text-royal-900;
+}
+
+/* Brand Card Styles */
+.card-brand {
+  @apply bg-white rounded-xl shadow-sm border border-royal-200 p-6;
 }
 
 /* Animation for loading spinner */
@@ -18,43 +49,43 @@
   animation: spin 1s linear infinite;
 }
 
-/* Custom gradient backgrounds */
-.gradient-bg {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+/* Brand gradient backgrounds */
+.gradient-brand {
+  background: linear-gradient(135deg, #B71C1C 0%, #424242 100%);
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar with brand colors */
 ::-webkit-scrollbar {
   width: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: #f5f5f5;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
+  background: #757575;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a1a1a1;
+  background: #424242;
 }
 
-/* Form focus styles */
+/* Form focus styles with brand colors */
 .form-input:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: #B71C1C;
+  box-shadow: 0 0 0 3px rgba(183, 28, 28, 0.1);
 }
 
 /* Button hover effects */
 .btn-primary {
-  @apply bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200;
+  @apply bg-red-900 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-800 focus:ring-2 focus:ring-red-900 focus:ring-offset-2 transition duration-200;
 }
 
 .btn-secondary {
-  @apply bg-gray-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-700 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition duration-200;
+  @apply bg-royal-800 text-white px-4 py-2 rounded-lg font-medium hover:bg-royal-700 focus:ring-2 focus:ring-royal-800 focus:ring-offset-2 transition duration-200;
 }
 
 .btn-danger {
@@ -63,19 +94,19 @@
 
 /* Card styles */
 .card {
-  @apply bg-white rounded-xl shadow-sm border border-gray-100 p-6;
+  @apply bg-white rounded-xl shadow-sm border border-royal-100 p-6;
 }
 
 /* Table styles */
 .table-header {
-  @apply px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider;
+  @apply px-6 py-3 text-left text-xs font-medium text-royal-500 uppercase tracking-wider;
 }
 
 .table-cell {
-  @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900;
+  @apply px-6 py-4 whitespace-nowrap text-sm text-royal-900;
 }
 
-/* Status badges */
+/* Status badges with brand colors */
 .badge {
   @apply inline-flex px-2 py-1 text-xs font-semibold rounded-full;
 }
@@ -96,8 +127,16 @@
   @apply bg-blue-100 text-blue-800;
 }
 
+.badge-brand {
+  @apply bg-red-100 text-red-900;
+}
+
+.badge-royal {
+  @apply bg-royal-100 text-royal-800;
+}
+
 .badge-gray {
-  @apply bg-gray-100 text-gray-800;
+  @apply bg-royal-100 text-royal-800;
 }
 
 /* Mobile responsive adjustments */

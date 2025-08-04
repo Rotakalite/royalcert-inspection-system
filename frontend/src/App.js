@@ -2981,28 +2981,105 @@ const DenetciDashboard = () => {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-gray-900">Denetçi Dashboard</h1>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold text-gray-900">Denetçi Dashboard</h1>
+        <div className="text-sm text-gray-500">
+          Hoş geldin, {JSON.parse(localStorage.getItem('user') || '{}').full_name}
+        </div>
+      </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <StatCard
           title="Toplam Denetimlerim"
-          value={stats.my_inspections || 0}
+          value={inspections.length}
           color="bg-blue-100"
           icon={<svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>}
         />
         <StatCard
           title="Bekleyen"
-          value={stats.my_pending || 0}
+          value={inspections.filter(i => i.status === 'beklemede').length}
           color="bg-yellow-100"
           icon={<svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>}
         />
         <StatCard
           title="Devam Eden"
-          value={stats.my_in_progress || 0}
+          value={inspections.filter(i => i.status === 'devam_ediyor').length}
           color="bg-blue-100"
           icon={<svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>}
         />
+        <StatCard
+          title="Tamamlanan"
+          value={inspections.filter(i => ['rapor_yazildi', 'onaylandi'].includes(i.status)).length}
+          color="bg-green-100"
+          icon={<svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>}
+        />
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => setActiveTab('today')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'today'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Bugünkü Denetimler
+          </button>
+          <button
+            onClick={() => setActiveTab('assigned')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'assigned'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Atanan Denetimler
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'history'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Denetim Geçmişi
+          </button>
+        </nav>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'today' && (
+        <InspectorTodayInspections 
+          inspections={inspections.filter(inspection => {
+            const plannedDate = new Date(inspection.planned_date);
+            const today = new Date();
+            return plannedDate.toDateString() === today.toDateString();
+          })}
+          onInspectionSelect={openInspectionForm}
+        />
+      )}
+
+      {activeTab === 'assigned' && (
+        <InspectorAssignedInspections 
+          inspections={inspections.filter(i => ['beklemede', 'devam_ediyor'].includes(i.status))}
+          onInspectionSelect={openInspectionForm}
+        />
+      )}
+
+      {activeTab === 'history' && (
+        <InspectorInspectionHistory 
+          inspections={inspections.filter(i => ['rapor_yazildi', 'onaylandi', 'reddedildi'].includes(i.status))}
+          onInspectionSelect={openInspectionForm}
+        />
+      )}
+    </div>
+  );
         <StatCard
           title="Rapor Yazıldı"
           value={stats.my_completed || 0}

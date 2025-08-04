@@ -1341,8 +1341,22 @@ def parse_word_document(file_content: bytes, filename: str) -> dict:
 
         print(f"DEBUG: Parsing {equipment_type} {template_type} template from {filename}")
 
-        # UNIVERSAL TEMPLATE STRUCTURE PARSER
-        template_structure = parse_universal_template_structure(text, tables, equipment_type)
+        # UNIVERSAL TEMPLATE STRUCTURE PARSER - INLINE FOR WORD DOCUMENTS
+        template_structure = {
+            "general_info": {},  
+            "measurement_devices": [],  
+            "equipment_info": {},  
+            "test_values": {},  
+            "control_items": [],  
+            "categories": [],
+            "categories_dict": {},
+            "test_experiments": [],  
+            "defect_explanations": "",  
+            "notes": "",  
+            "result_opinion": "",  
+            "inspector_info": {},  
+            "company_official": {}  
+        }
         
         # Create template name based on equipment type and template type
         if template_type == "REPORT":

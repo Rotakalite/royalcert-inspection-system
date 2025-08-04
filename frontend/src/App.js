@@ -1,4 +1,5 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
+import TemplateBuilderModal from './components/TemplateBuilderModal';
 import axios from 'axios';
 import './App.css';
 

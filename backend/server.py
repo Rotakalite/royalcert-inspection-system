@@ -1385,9 +1385,9 @@ def parse_universal_template_structure(text: str, tables: list, equipment_type: 
     unique_items = {}  # Prevent duplicates only
     
     # Extract from tables directly - NO FILTERING
-    for table_data in tables:
-        for row_data in table_data:  # FIXED: iterate over table_data (list of rows)
-            for cell_text in row_data:  # FIXED: iterate over row_data (list of cells)
+    for table_data in tables:  # table_data is list of rows (each row is list of cells)
+        for row_data in table_data:  # row_data is list of cell texts
+            for cell_text in row_data:  # cell_text is string
                 cell_text = cell_text.strip()
                 if cell_text:
                     # Check if it's a numbered item

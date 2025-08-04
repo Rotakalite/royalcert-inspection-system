@@ -762,8 +762,13 @@ const AppContent = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-900 mx-auto"></div>
-          <p className="mt-4 text-royal-600">Yükleniyor...</p>
+          <img 
+            src="https://customer-assets.emergentagent.com/job_yeni-yazilim/artifacts/7675i2kn_WhatsApp%20G%C3%B6rsel%202025-08-04%20saat%2012.57.00_7b510c6c.jpg"
+            alt="RoyalCert Logo"
+            className="w-20 h-20 object-contain mx-auto mb-4"
+          />
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-900 mx-auto mb-4"></div>
+          <p className="text-royal-600">Yükleniyor...</p>
         </div>
       </div>
     );

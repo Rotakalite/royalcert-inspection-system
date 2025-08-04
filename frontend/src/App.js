@@ -2912,6 +2912,274 @@ const DynamicInspectionForm = ({ inspectionId, onBack, onSave }) => {
   );
 };
 
+// Phase 6.1: Inspector Dashboard Components
+const InspectorTodayInspections = ({ inspections, onInspectionSelect }) => {
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'beklemede': return 'bg-yellow-100 text-yellow-800';
+      case 'devam_ediyor': return 'bg-blue-100 text-blue-800';
+      case 'rapor_yazildi': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusText = (status) => {
+    switch (status) {
+      case 'beklemede': return 'Beklemede';
+      case 'devam_ediyor': return 'Devam Ediyor';
+      case 'rapor_yazildi': return 'Rapor Yazıldı';
+      default: return 'Bilinmeyen';
+    }
+  };
+
+  const getActionButton = (inspection) => {
+    switch (inspection.status) {
+      case 'beklemede':
+        return (
+          <button
+            onClick={() => onInspectionSelect(inspection)}
+            className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+          >
+            Denetimi Başlat
+          </button>
+        );
+      case 'devam_ediyor':
+        return (
+          <button
+            onClick={() => onInspectionSelect(inspection)}
+            className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+          >
+            Devam Et
+          </button>
+        );
+      case 'rapor_yazildi':
+        return (
+          <button
+            onClick={() => onInspectionSelect(inspection)}
+            className="px-3 py-1 bg-gray-600 text-white text-sm rounded hover:bg-gray-700"
+          >
+            Görüntüle
+          </button>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg font-semibold text-gray-900">Bugünkü Denetimler ({inspections.length})</h2>
+      
+      {inspections.length === 0 ? (
+        <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+          <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3a4 4 0 118 0v4m-4 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"></path>
+          </svg>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">Bugün denetim yok</h3>
+          <p className="mt-1 text-sm text-gray-500">Bugün için planlanmış denetim bulunmuyor.</p>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {inspections.map((inspection) => (
+            <div key={inspection.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-lg font-medium text-gray-900">
+                      {inspection.equipment_info?.equipment_type || 'Genel Denetim'}
+                    </h3>
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(inspection.status)}`}>
+                      {getStatusText(inspection.status)}
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center text-sm text-gray-600">
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H9m11 0a2 2 0 01-2 2H7a2 2 0 01-2-2m2-10h2m-2 4h2m-2 4h2m-2-8h2m-2 4h2"></path>
+                      </svg>
+                      <span>Müşteri ID: {inspection.customer_id}</span>
+                    </div>
+                    {inspection.equipment_info?.serial_number && (
+                      <div className="flex items-center text-sm text-gray-600">
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"></path>
+                        </svg>
+                        <span>Seri No: {inspection.equipment_info.serial_number}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center text-sm text-gray-600">
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                      </svg>
+                      <span>Planlanan: {new Date(inspection.planned_date).toLocaleDateString('tr-TR')} {new Date(inspection.planned_date).toLocaleTimeString('tr-TR', {hour: '2-digit', minute: '2-digit'})}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="ml-6">
+                  {getActionButton(inspection)}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const InspectorAssignedInspections = ({ inspections, onInspectionSelect }) => {
+  const sortedInspections = inspections.sort((a, b) => new Date(a.planned_date) - new Date(b.planned_date));
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg font-semibold text-gray-900">
+        Atanan Denetimler ({inspections.length})
+      </h2>
+      
+      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ekipman</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Müşteri</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Planlanan Tarih</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Durum</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">İşlemler</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {sortedInspections.map((inspection) => (
+              <tr key={inspection.id}>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  {inspection.equipment_info?.equipment_type || 'Genel Ekipman'}
+                  {inspection.equipment_info?.serial_number && (
+                    <div className="text-sm text-gray-500">SN: {inspection.equipment_info.serial_number}</div>
+                  )}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {inspection.customer_id}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {new Date(inspection.planned_date).toLocaleDateString('tr-TR')}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                    inspection.status === 'beklemede' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-blue-100 text-blue-800'
+                  }`}>
+                    {inspection.status === 'beklemede' ? 'Beklemede' : 'Devam Ediyor'}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <button
+                    onClick={() => onInspectionSelect(inspection)}
+                    className="text-blue-600 hover:text-blue-900"
+                  >
+                    {inspection.status === 'beklemede' ? 'Başlat' : 'Devam Et'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        
+        {inspections.length === 0 && (
+          <div className="text-center py-12">
+            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+            </svg>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">Atanan denetim yok</h3>
+            <p className="mt-1 text-sm text-gray-500">Size henüz bir denetim atanmamış.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const InspectorInspectionHistory = ({ inspections, onInspectionSelect }) => {
+  const sortedInspections = inspections.sort((a, b) => new Date(b.completed_at || b.created_at) - new Date(a.completed_at || a.created_at));
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg font-semibold text-gray-900">
+        Denetim Geçmişi ({inspections.length})
+      </h2>
+      
+      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ekipman</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Müşteri</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tamamlanan Tarih</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Durum</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">İşlemler</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {sortedInspections.map((inspection) => (
+              <tr key={inspection.id}>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  {inspection.equipment_info?.equipment_type || 'Genel Ekipman'}
+                  {inspection.equipment_info?.serial_number && (
+                    <div className="text-sm text-gray-500">SN: {inspection.equipment_info.serial_number}</div>
+                  )}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {inspection.customer_id}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {new Date(inspection.completed_at || inspection.created_at).toLocaleDateString('tr-TR')}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                    inspection.status === 'onaylandi' ? 'bg-green-100 text-green-800' :
+                    inspection.status === 'rapor_yazildi' ? 'bg-blue-100 text-blue-800' :
+                    'bg-red-100 text-red-800'
+                  }`}>
+                    {inspection.status === 'onaylandi' ? 'Onaylandı' :
+                     inspection.status === 'rapor_yazildi' ? 'Rapor Yazıldı' :
+                     inspection.status === 'reddedildi' ? 'Reddedildi' : 'Bilinmeyen'}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <button
+                    onClick={() => onInspectionSelect(inspection)}
+                    className="text-blue-600 hover:text-blue-900 mr-3"
+                  >
+                    Görüntüle
+                  </button>
+                  {inspection.status === 'reddedildi' && (
+                    <button
+                      onClick={() => onInspectionSelect(inspection)}
+                      className="text-green-600 hover:text-green-900"
+                    >
+                      Düzenle
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        
+        {inspections.length === 0 && (
+          <div className="text-center py-12">
+            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+            </svg>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">Geçmiş denetim yok</h3>
+            <p className="mt-1 text-sm text-gray-500">Henüz tamamlanmış denetiminiz bulunmuyor.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const DenetciDashboard = () => {
   const [stats, setStats] = useState({});
   const [inspections, setInspections] = useState([]);

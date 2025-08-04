@@ -230,6 +230,10 @@ const AdminDashboard = () => {
     is_active: true
   });
 
+  // Template Management States
+  const [showTemplateForm, setShowTemplateForm] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState(null);
+
   useEffect(() => {
     fetchStats();
     fetchUsers();

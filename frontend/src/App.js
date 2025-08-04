@@ -1979,7 +1979,7 @@ const CustomerManagement = ({ onBack }) => {
                           <p className="text-sm text-gray-500">{equipmentGroup.description}</p>
                           <p className="text-xs text-gray-400">
                             {equipmentGroup.templates.length > 1 
-                              ? `${equipmentGroup.templates.filter(t => t.template_type === 'FORM').length} kontrol formu + ${equipmentGroup.templates.filter(t => t.template_type === 'REPORT').length} rapor template'i`
+                              ? equipmentGroup.templates.filter(t => t.template_type === 'FORM').length + " kontrol formu + " + equipmentGroup.templates.filter(t => t.template_type === 'REPORT').length + " rapor template'i"
                               : '1 template'}
                           </p>
                         </div>

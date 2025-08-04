@@ -565,7 +565,8 @@ const Layout = ({ children }) => {
                 <span className="font-medium">{user?.full_name}</span>
                 <span className="ml-2 text-gray-500">
                   ({user?.role === 'admin' ? 'Admin' : 
-                    user?.role === 'planlama_uzmani' ? 'Planlama Uzmanı' : 'Denetçi'})
+                    user?.role === 'planlama_uzmani' ? 'Planlama Uzmanı' : 
+                    user?.role === 'teknik_yonetici' ? 'Teknik Yönetici' : 'Denetçi'})
                 </span>
               </div>
               <button

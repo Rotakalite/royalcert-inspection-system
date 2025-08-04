@@ -321,16 +321,198 @@ async def delete_customer(customer_id: str, current_user: User = Depends(require
 
 # ===================== EQUIPMENT TEMPLATES =====================
 
+# ===================== CARASKAL TEMPLATE DATA =====================
+
+def get_caraskal_template():
+    """Caraskal muayene formu template'i"""
+    caraskal_categories = [
+        {
+            "code": "A",
+            "name": "KUMANDA SİSTEMLERİ VE/VEYA KABİN",
+            "items": [
+                {"id": 1, "text": "Kumandalar ve işaretlemeleri (araba ve köprü hareketleri, kaldırma ve indirme ve kablosuz kumanda kullanımı)", "category": "A", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 2, "text": "El zinciri ve çalışması", "category": "A", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 3, "text": "El kumandası kablo uzunluğunun operatörün tehlike bölgesinden uzaklaşmasını sağlaması ve gergi teli", "category": "A", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 4, "text": "Farklı kumanda konsollarının aynı anda çalışmasının engellenmesi", "category": "A", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 5, "text": "Kabin ve kabin bağlantıları", "category": "A", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 6, "text": "Acil durdurma butonu", "category": "A", "input_type": "dropdown", "has_comment": True, "required": True}
+            ]
+        },
+        {
+            "code": "B",
+            "name": "SINIRLAYICILAR",
+            "items": [
+                {"id": 7, "text": "Nominal kapasite sınırlayıcısı (aşırı yük) sistemi ve ikazı", "category": "B", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 8, "text": "Alt sınır güvenlik sınırlayıcısı", "category": "B", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 9, "text": "Üst sınır güvenlik sınırlayıcısı", "category": "B", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 10, "text": "Araba hareket sınırlayıcılar (tamponlar) ve yavaşlatıcılar", "category": "B", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 11, "text": "Köprü hareket sınırlayıcılar (tamponlar) ve yavaşlatıcılar", "category": "B", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 12, "text": "Kabin hareket sınırlayıcılar (tamponlar) ve yavaşlatıcılar", "category": "B", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 13, "text": "Aynı kılavuz ray üzerinde çalışan caraskalların çarpışmasının engellenmesi", "category": "B", "input_type": "dropdown", "has_comment": True, "required": True}
+            ]
+        },
+        {
+            "code": "C",
+            "name": "FREN SİSTEMİ",
+            "items": [
+                {"id": 14, "text": "Kaldırma ve indirme frenleri", "category": "C", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 15, "text": "Araba hareketinin durması", "category": "C", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 16, "text": "Köprü hareketinin durması", "category": "C", "input_type": "dropdown", "has_comment": True, "required": True}
+            ]
+        },
+        {
+            "code": "D",
+            "name": "YÜK ZİNCİRİ, KANCA BLOĞU VE ÇARKLAR",
+            "items": [
+                {"id": 17, "text": "Yük zincir; Bakla kalıcı uzama", "category": "D", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 18, "text": "Yük zinciri yapısı, deformasyon ve toplanması", "category": "D", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 19, "text": "Kanca gövde kesiti, ağız açıklığı, serbest dönüş ve deformasyon", "category": "D", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 20, "text": "Kanca/kanca bloğu için; yükün istemsiz hareketinin engellenmesi", "category": "D", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 21, "text": "Zincirin çark yuvalarından çıkması ve zincir çark arası el sıkışma tehlikesi", "category": "D", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 22, "text": "Çarklar", "category": "D", "input_type": "dropdown", "has_comment": True, "required": True}
+            ]
+        },
+        {
+            "code": "E",
+            "name": "YAPISAL KONTROL",
+            "items": [
+                {"id": 23, "text": "Yürüme rayları (araba ve köprü) yapısı ve deformasyon", "category": "E", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 24, "text": "Köprü kiriş yapısı ve deformasyon", "category": "E", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 25, "text": "Köprü taşıyıcı kiriş ve kolon yapısı ve deformasyon", "category": "E", "input_type": "dropdown", "has_comment": True, "required": True}
+            ]
+        },
+        {
+            "code": "F",
+            "name": "ERİŞİM",
+            "items": [
+                {"id": 26, "text": "Hareketli parçalar arasında ezilme ve geçit genişliği", "category": "F", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 27, "text": "Çalışma alanlarına ve/veya kabine çıkış merdiveni", "category": "F", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 28, "text": "Dinlenme platformu", "category": "F", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 29, "text": "Çemberli koruyucu", "category": "F", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 30, "text": "Yürüme yolları", "category": "F", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 31, "text": "Erişimde üç nokta desteği", "category": "F", "input_type": "dropdown", "has_comment": True, "required": True}
+            ]
+        },
+        {
+            "code": "G",
+            "name": "DİĞER KONTROLLER",
+            "items": [
+                {"id": 32, "text": "Üretici ve kapasite etiketi", "category": "G", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 33, "text": "(varsa) Aparat kapasite etiketi", "category": "G", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 34, "text": "Çalışma alanı içerisinde uyarı etiket ve işaretleri", "category": "G", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 35, "text": "Sesli ve/veya görsel ikaz", "category": "G", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 36, "text": "Kılavuz raylar arasına yabancı madde girmesinin engellenmesi", "category": "G", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 37, "text": "Redüktör yağlanması ve sızıntı", "category": "G", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 38, "text": "Kilitlenebilir ana şalter", "category": "G", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 39, "text": "Kaçak akıma karşı koruma", "category": "G", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 40, "text": "Kablo arabası ve bükülebilen kablolar", "category": "G", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 41, "text": "Bakım onarım kayıtları, işletme talimatı ve el kitabı", "category": "G", "input_type": "dropdown", "has_comment": True, "required": True}
+            ]
+        },
+        {
+            "code": "H",
+            "name": "TEST, DENEY VE MUAYENE",
+            "items": [
+                {"id": 42, "text": "Caraskalın yüksüz durumda testi (fonksiyon testi)", "category": "H", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 43, "text": "Caraskal kaldırma kapasitesinin 1,25 / 1,5 katında test yükü ile gerçekleştirilen test (statik test)", "category": "H", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 44, "text": "Statik testin gerçekleştirildiği test yükü (kg)", "category": "H", "input_type": "text", "has_comment": False, "required": True},
+                {"id": 45, "text": "Caraskal kaldırma kapasitesinin 1,1 katında test yükü ile gerçekleştirilen test (dinamik test)", "category": "H", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 46, "text": "Dinamik testin gerçekleştirildiği test yükü (kg)", "category": "H", "input_type": "text", "has_comment": False, "required": True},
+                {"id": 47, "text": "Caraskalın işletme/kaldırma kapasitesinde test yükü ile gerçekleştirilen test (yük testi)", "category": "H", "input_type": "dropdown", "has_comment": True, "required": True},
+                {"id": 48, "text": "Yük testinin gerçekleştirildiği test yükü (kg.)", "category": "H", "input_type": "text", "has_comment": False, "required": True}
+            ]
+        }
+    ]
+    
+    return {
+        "equipment_type": "CARASKAL",
+        "description": "Caraskal Muayene Formu ve Raporu",
+        "categories": caraskal_categories
+    }
+
+# ===================== TEMPLATE MANAGEMENT API =====================
+
 @app.post("/api/equipment-templates", response_model=EquipmentTemplate)
-async def create_equipment_template(template: EquipmentTemplate, current_user: User = Depends(require_role(UserRole.ADMIN))):
+async def create_equipment_template(
+    template: EquipmentTemplateCreate, 
+    current_user: User = Depends(require_role(UserRole.ADMIN))
+):
+    # Check if template already exists
+    existing = await db.equipment_templates.find_one({"equipment_type": template.equipment_type})
+    if existing:
+        raise HTTPException(status_code=400, detail="Equipment template already exists")
+    
     template_dict = template.dict()
+    template_dict["id"] = str(uuid.uuid4())
+    template_dict["created_by"] = current_user.id
+    template_dict["is_active"] = True
+    template_dict["created_at"] = datetime.utcnow()
+    template_dict["updated_at"] = datetime.utcnow()
+    
     await db.equipment_templates.insert_one(template_dict)
-    return template
+    return EquipmentTemplate(**template_dict)
 
 @app.get("/api/equipment-templates", response_model=List[EquipmentTemplate])
 async def get_equipment_templates(current_user: User = Depends(get_current_user)):
-    templates = await db.equipment_templates.find().to_list(1000)
+    templates = await db.equipment_templates.find({"is_active": True}).to_list(1000)
     return [EquipmentTemplate(**template) for template in templates]
+
+@app.get("/api/equipment-templates/{template_id}", response_model=EquipmentTemplate)
+async def get_equipment_template(template_id: str, current_user: User = Depends(get_current_user)):
+    template = await db.equipment_templates.find_one({"id": template_id, "is_active": True})
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return EquipmentTemplate(**template)
+
+@app.put("/api/equipment-templates/{template_id}", response_model=EquipmentTemplate)
+async def update_equipment_template(
+    template_id: str,
+    template_update: EquipmentTemplateCreate,
+    current_user: User = Depends(require_role(UserRole.ADMIN))
+):
+    existing = await db.equipment_templates.find_one({"id": template_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Template not found")
+    
+    update_data = template_update.dict()
+    update_data["updated_at"] = datetime.utcnow()
+    
+    await db.equipment_templates.update_one({"id": template_id}, {"$set": update_data})
+    
+    updated_template = await db.equipment_templates.find_one({"id": template_id})
+    return EquipmentTemplate(**updated_template)
+
+@app.delete("/api/equipment-templates/{template_id}")
+async def delete_equipment_template(
+    template_id: str,
+    current_user: User = Depends(require_role(UserRole.ADMIN))
+):
+    result = await db.equipment_templates.update_one(
+        {"id": template_id},
+        {"$set": {"is_active": False, "updated_at": datetime.utcnow()}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return {"message": "Template deleted successfully"}
+
+@app.post("/api/equipment-templates/initialize")
+async def initialize_caraskal_template(current_user: User = Depends(require_role(UserRole.ADMIN))):
+    """Initialize Caraskal template in database"""
+    # Check if Caraskal template already exists
+    existing = await db.equipment_templates.find_one({"equipment_type": "CARASKAL"})
+    if existing:
+        return {"message": "Caraskal template already exists"}
+    
+    caraskal_data = get_caraskal_template()
+    template_dict = caraskal_data.copy()
+    template_dict["id"] = str(uuid.uuid4())
+    template_dict["created_by"] = current_user.id
+    template_dict["is_active"] = True
+    template_dict["created_at"] = datetime.utcnow()
+    template_dict["updated_at"] = datetime.utcnow()
+    
+    await db.equipment_templates.insert_one(template_dict)
+    return {"message": "Caraskal template initialized successfully"}
 
 # ===================== INSPECTION MANAGEMENT =====================
 

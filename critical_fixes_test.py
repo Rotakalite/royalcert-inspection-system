@@ -126,11 +126,17 @@ class CriticalFixesTester:
                     category_distribution[category] = []
                 category_distribution[category].append(question_num)
                 
-                # Check if questions 43-53 are properly categorized (this was the bug)
-                if 43 <= question_num <= 53:
+                # Check if questions 49-53 are properly categorized (this was the bug)
+                if 49 <= question_num <= 53:
                     if category != 'G':
                         problematic_questions.append(question_num)
                         print(f"   ❌ Question {question_num} -> Category {category} (SHOULD BE G)")
+                    else:
+                        print(f"   ✅ Question {question_num} -> Category {category}")
+                elif 41 <= question_num <= 48:
+                    if category != 'F':
+                        problematic_questions.append(question_num)
+                        print(f"   ❌ Question {question_num} -> Category {category} (SHOULD BE F)")
                     else:
                         print(f"   ✅ Question {question_num} -> Category {category}")
             

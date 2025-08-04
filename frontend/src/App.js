@@ -3205,6 +3205,178 @@ const DynamicInspectionForm = ({ inspectionId, onBack, onSave }) => {
         </div>
       ))}
 
+      {/* Phase 6.2: General Information Section */}
+      <div className="bg-white rounded-xl shadow-sm">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900">Genel Bilgiler ve Sonuç</h3>
+        </div>
+        
+        <div className="p-6 space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Tespit Edilen Eksiklik/Kusurlar
+            </label>
+            <textarea
+              value={generalInfo.defects || ''}
+              onChange={(e) => setGeneralInfo(prev => ({...prev, defects: e.target.value}))}
+              rows="4"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-900 focus:border-transparent"
+              placeholder="Tespit edilen kusurları detaylı olarak açıklayın..."
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Notlar ve Öneriler
+            </label>
+            <textarea
+              value={generalInfo.notes || ''}
+              onChange={(e) => setGeneralInfo(prev => ({...prev, notes: e.target.value}))}
+              rows="3"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-900 focus:border-transparent"
+              placeholder="Ek notlar ve öneriler..."
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Sonuç ve Kanaat
+            </label>
+            <select
+              value={generalInfo.conclusion || ''}
+              onChange={(e) => setGeneralInfo(prev => ({...prev, conclusion: e.target.value}))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-900 focus:border-transparent"
+            >
+              <option value="">Sonuç seçin...</option>
+              <option value="UYGUN">Ekipmanın kullanılması UYGUNDUR</option>
+              <option value="SAKINCALI">Ekipmanın kullanılması SAKINCALIDIR</option>
+              <option value="KOSULLU">Belirtilen koşullarda kullanılması uygundur</option>
+            </select>
+          </div>
+
+          {/* Phase 6.2: General Photos Section */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Genel Fotoğraflar
+            </label>
+            
+            <div className="space-y-3">
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => Array.from(e.target.files).forEach(file => handlePhotoUpload('general', file))}
+                className="hidden"
+                id="general-photos"
+              />
+              <label
+                htmlFor="general-photos"
+                className="flex items-center justify-center px-4 py-3 border border-dashed border-gray-300 rounded-md cursor-pointer hover:border-blue-400"
+              >
+                {uploadingPhotos['general'] ? (
+                  'Yükleniyor...'
+                ) : (
+                  <>
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    Genel Fotoğraf Ekle
+                  </>
+                )}
+              </label>
+              
+              {/* General Photos Preview */}
+              {photos['general'] && photos['general'].length > 0 && (
+                <div className="grid grid-cols-4 gap-3">
+                  {photos['general'].map((photo) => (
+                    <div key={photo.id} className="relative">
+                      <img
+                        src={photo.data}
+                        alt={photo.filename}
+                        className="w-full h-20 object-cover rounded border"
+                      />
+                      <button
+                        onClick={() => removePhoto('general', photo.id)}
+                        className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6 text-sm hover:bg-red-700"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Phase 6.3: Action Buttons with Enhanced Saving */}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
+          <div className="flex flex-col text-sm text-gray-600">
+            <div className="flex items-center space-x-2">
+              <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <span>Form otomatik olarak kaydedilmektedir</span>
+            </div>
+            <div className="flex items-center space-x-4 mt-1">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={autoSaveEnabled}
+                  onChange={(e) => setAutoSaveEnabled(e.target.checked)}
+                  className="mr-2"
+                />
+                Otomatik kayıt
+              </label>
+            </div>
+          </div>
+          
+          <div className="flex space-x-4">
+            <button
+              onClick={() => handleSave(true)}
+              disabled={saving}
+              className="px-6 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? 'Kaydediliyor...' : '💾 Taslak Kaydet'}
+            </button>
+            <button
+              onClick={() => {
+                if (completionPercentage < 80) {
+                  if (!window.confirm(`Form %${completionPercentage} tamamlanmış. Yine de tamamlamak istiyor musunuz?`)) {
+                    return;
+                  }
+                }
+                handleSave(false);
+              }}
+              disabled={saving}
+              className="px-6 py-2 bg-red-900 text-white rounded-md hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? 'Tamamlanıyor...' : '✅ Formu Tamamla'}
+            </button>
+          </div>
+        </div>
+        
+        {/* Phase 6.3: Validation Summary */}
+        {completionPercentage > 0 && completionPercentage < 100 && (
+          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+            <div className="flex items-center">
+              <svg className="w-4 h-4 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+              </svg>
+              <span className="text-sm text-yellow-800">
+                Form henüz tam olarak tamamlanmamış (%{completionPercentage}). 
+                Tamamlamak için tüm kontrol maddelerini doldurun ve genel bilgileri ekleyin.
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+</new_str>
+
       {/* Additional Info Section */}
       <div className="bg-white rounded-xl shadow-sm">
         <div className="px-6 py-4 border-b border-gray-200 bg-yellow-50">

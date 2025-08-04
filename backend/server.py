@@ -1521,8 +1521,8 @@ def parse_universal_template_structure(text: str, tables: list, equipment_type: 
                             })
                             item_id += 1
                             
-                            # Reasonable limit - but not too restrictive
-                            if item_id > 80:  # Allow up to 80 for complex equipment
+                            # Reasonable limit - EXTENDED FOR ALL 53 ITEMS
+                            if item_id > 60:  # REDUCED: Was 80, now 60 to focus on 53 items
                                 break
         
         print(f"DEBUG: Table parsing found {len(control_items)} control items")

@@ -1017,47 +1017,71 @@ const AdminDashboard = () => {
 
       {activeTab === 'templates' && (
         <div className="space-y-6">
-          {/* Template Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <StatCard
-              title="Toplam Template"
-              value={templates.length}
-              color="bg-indigo-100"
-              icon={<svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>}
-            />
-            <StatCard
-              title="Aktif Template"
-              value={templates.filter(t => t.is_active).length}
-              color="bg-green-100"
-              icon={<svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>}
-            />
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Hızlı İşlem</p>
+          {/* Template Management Header */}
+          <div className="bg-white rounded-xl shadow-sm">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg font-semibold text-gray-900">Ekipman Template'leri Yönetimi</h2>
+                <div className="space-x-3">
                   <button
-                    onClick={initializeCaraskalTemplate}
-                    className="mt-2 px-4 py-2 bg-red-900 text-white text-sm rounded-md hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-900"
+                    onClick={() => setShowTemplateForm(true)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                   >
-                    Caraskal Template Başlat
+                    + Yeni Template Ekle
+                  </button>
+                  <button
+                    onClick={initializeTemplates}
+                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                  >
+                    📋 CARASKAL Template Başlat
                   </button>
                 </div>
-                <div className="flex-shrink-0 p-3 rounded-lg bg-red-100">
-                  <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                  </svg>
-                </div>
+              </div>
+            </div>
+
+            {/* Template Stats */}
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <StatCard
+                  title="Toplam Template"
+                  value={templates.length}
+                  color="bg-blue-100"
+                  icon={<svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>}
+                />
+                <StatCard
+                  title="Aktif Template"
+                  value={templates.filter(t => t.is_active).length}
+                  color="bg-green-100"
+                  icon={<svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>}
+                />
+                <StatCard
+                  title="Kategori Sayısı"
+                  value="8"
+                  color="bg-purple-100"
+                  icon={<svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>}
+                />
               </div>
             </div>
           </div>
 
-          {/* Templates Table */}
+          {/* Template Form Modal */}
+          {showTemplateForm && (
+            <TemplateFormModal 
+              onClose={() => {
+                setShowTemplateForm(false);
+                setEditingTemplate(null);
+              }}
+              onSave={handleTemplateSave}
+              editingTemplate={editingTemplate}
+            />
+          )}
+
+          {/* Template List */}
           <div className="bg-white rounded-xl shadow-sm">
             <div className="px-6 py-4 border-b border-gray-200">
-              <div className="flex justify-between items-center">
-                <h2 className="text-lg font-semibold text-gray-900">Ekipman Template'leri</h2>
-              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Ekipman Template'leri</h3>
             </div>
+            
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50">
@@ -1077,27 +1101,30 @@ const AdminDashboard = () => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10">
-                            <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center">
-                              <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="h-10 w-10 rounded-lg bg-red-100 flex items-center justify-center">
+                              <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                               </svg>
                             </div>
                           </div>
                           <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">{template.equipment_type}</div>
+                            <div className="text-sm font-medium text-gray-900">{template.name}</div>
+                            <div className="text-sm text-gray-500">{template.equipment_type}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {template.description}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {template.description || 'Açıklama yok'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {template.categories.length} kategori
+                        {template.categories ? template.categories.length : 0} kategori
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {template.categories.reduce((total, cat) => total + cat.items.length, 0)} madde
+                        {template.categories ? 
+                          template.categories.reduce((total, cat) => total + (cat.items?.length || 0), 0) : 0
+                        } madde
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {new Date(template.created_at).toLocaleDateString('tr-TR')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -1107,24 +1134,49 @@ const AdminDashboard = () => {
                           {template.is_active ? 'Aktif' : 'Pasif'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button className="text-indigo-600 hover:text-indigo-900 mr-3">Görüntüle</button>
-                        <button className="text-red-600 hover:text-red-900">Düzenle</button>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                        <button
+                          onClick={() => handleTemplateView(template)}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          Görüntüle
+                        </button>
+                        <button
+                          onClick={() => handleTemplateEdit(template)}
+                          className="text-indigo-600 hover:text-indigo-900"
+                        >
+                          Düzenle
+                        </button>
+                        <button
+                          onClick={() => handleTemplateToggle(template)}
+                          className={`${template.is_active ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'}`}
+                        >
+                          {template.is_active ? 'Pasifleştir' : 'Aktifleştir'}
+                        </button>
+                        <button
+                          onClick={() => handleTemplateDelete(template)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          Sil
+                        </button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              
+              {templates.length === 0 && (
+                <div className="text-center py-12">
+                  <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                  </svg>
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">Template bulunamadı</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Yeni template eklemek için yukarıdaki butona tıklayın veya CARASKAL template'ini initialize edin.
+                  </p>
+                </div>
+              )}
             </div>
-            {templates.length === 0 && (
-              <div className="text-center py-12">
-                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                </svg>
-                <h3 className="mt-2 text-sm font-medium text-gray-900">Henüz template yok</h3>
-                <p className="mt-1 text-sm text-gray-500">Caraskal template'ini başlatmak için yukarıdaki butonu kullanın.</p>
-              </div>
-            )}
           </div>
         </div>
       )}

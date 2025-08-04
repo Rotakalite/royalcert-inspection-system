@@ -868,11 +868,24 @@ async def get_inspection_form(inspection_id: str, current_user: User = Depends(g
     # Get existing form data if any
     existing_data = inspection.get("report_data", {})
     
+    # Prepare enhanced form data structure for Phase 6.2 & 6.3
     form_data = {
-        "inspection": Inspection(**inspection),
-        "customer": Customer(**customer),
-        "template": EquipmentTemplate(**template),
-        "existing_data": existing_data
+        "inspection_id": inspection_id,
+        "equipment_type": equipment_type,
+        "customer_name": customer["company_name"],
+        "equipment_serial": inspection["equipment_info"].get("serial_number", ""),
+        "control_items": template["categories"][0]["items"] if template["categories"] else [],
+        "form_data": existing_data.get("form_data", {}),
+        "general_info": existing_data.get("general_info", {}),
+        "equipment_info": existing_data.get("equipment_info", {}),
+        "photos": existing_data.get("photos", {}),
+        "is_draft": existing_data.get("is_draft", True),
+        "completion_percentage": existing_data.get("completion_percentage", 0),
+        "last_saved": existing_data.get("last_saved"),
+        "inspector": {
+            "id": inspection["inspector_id"],
+            "name": current_user.full_name if current_user.id == inspection["inspector_id"] else "Unknown"
+        }
     }
     
     return form_data

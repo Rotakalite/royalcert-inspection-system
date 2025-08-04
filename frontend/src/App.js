@@ -390,14 +390,13 @@ const PlanlamaDashboard = () => {
   );
 };
 
-const TeknisyenDashboard = () => {
+const DenetciDashboard = () => {
   const [stats, setStats] = useState({});
-  const [pendingInspections, setPendingInspections] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [inspections, setInspections] = useState([]);
 
   useEffect(() => {
     fetchStats();
-    fetchPendingInspections();
+    fetchInspections();
   }, []);
 
   const fetchStats = async () => {
@@ -409,81 +408,68 @@ const TeknisyenDashboard = () => {
     }
   };
 
-  const fetchPendingInspections = async () => {
+  const fetchInspections = async () => {
     try {
-      const response = await api.get('/inspections/pending-approval');
-      setPendingInspections(response.data);
-      setLoading(false);
+      const response = await api.get('/inspections');
+      setInspections(response.data);
     } catch (error) {
-      console.error('Pending inspections error:', error);
-      setLoading(false);
+      console.error('Inspections error:', error);
     }
   };
 
-  const handleApproval = async (inspectionId, action, notes = '') => {
+  const handleStatusUpdate = async (inspectionId, newStatus) => {
     try {
-      await api.post(`/inspections/${inspectionId}/approve`, {
-        action,
-        notes
-      });
+      await api.put(`/inspections/${inspectionId}`, { status: newStatus });
       fetchStats();
-      fetchPendingInspections();
+      fetchInspections();
     } catch (error) {
-      console.error('Approval error:', error);
+      console.error('Status update error:', error);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-gray-900">Teknik Yönetici Dashboard</h1>
+      <h1 className="text-3xl font-bold text-gray-900">Denetçi Dashboard</h1>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <StatCard
-          title="Onay Bekleyen"
-          value={stats.pending_approval || 0}
+          title="Toplam Denetimlerim"
+          value={stats.my_inspections || 0}
+          color="bg-blue-100"
+          icon={<svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>}
+        />
+        <StatCard
+          title="Bekleyen"
+          value={stats.my_pending || 0}
           color="bg-yellow-100"
           icon={<svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>}
         />
         <StatCard
-          title="Bugün Onaylanan"
-          value={stats.approved_today || 0}
+          title="Devam Eden"
+          value={stats.my_in_progress || 0}
+          color="bg-blue-100"
+          icon={<svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>}
+        />
+        <StatCard
+          title="Rapor Yazıldı"
+          value={stats.my_completed || 0}
           color="bg-green-100"
           icon={<svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>}
         />
-        <StatCard
-          title="Reddedilen"
-          value={stats.rejected_reports || 0}
-          color="bg-red-100"
-          icon={<svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>}
-        />
-        <StatCard
-          title="Toplam Onaylanan"
-          value={stats.total_approved || 0}
-          color="bg-blue-100"
-          icon={<svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>}
-        />
       </div>
 
-      {/* Pending Approvals */}
+      {/* My Inspections */}
       <div className="bg-white rounded-xl shadow-sm">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Onay Bekleyen Raporlar</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Denetimlerim</h2>
         </div>
         <div className="p-6">
-          {pendingInspections.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">Onay bekleyen rapor bulunmuyor</p>
+          {inspections.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">Size henüz denetim atanmamış</p>
           ) : (
             <div className="space-y-4">
-              {pendingInspections.map((inspection) => (
+              {inspections.map((inspection) => (
                 <div key={inspection.id} className="border border-gray-200 rounded-lg p-4">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
@@ -491,34 +477,60 @@ const TeknisyenDashboard = () => {
                         {inspection.equipment_info?.equipment_type || 'Ekipman'} Muayenesi
                       </h3>
                       <p className="text-sm text-gray-500 mt-1">
-                        Denetim Tarihi: {new Date(inspection.planned_date).toLocaleDateString('tr-TR')}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        Rapor Oluşturulma: {new Date(inspection.updated_at || inspection.created_at).toLocaleDateString('tr-TR')}
+                        Planlanan: {new Date(inspection.planned_date).toLocaleDateString('tr-TR')}
                       </p>
                     </div>
-                    <div className="flex space-x-2 ml-4">
-                      <button
-                        onClick={() => handleApproval(inspection.id, 'approve')}
-                        className="px-3 py-1 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-                      >
-                        Onayla
-                      </button>
-                      <button
-                        onClick={() => {
-                          const notes = prompt('Red nedeni (opsiyonel):');
-                          handleApproval(inspection.id, 'reject', notes);
-                        }}
-                        className="px-3 py-1 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
-                      >
-                        Reddet
-                      </button>
+                    <div className="flex items-center space-x-2">
+                      <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                        inspection.status === 'beklemede' ? 'bg-yellow-100 text-yellow-800' :
+                        inspection.status === 'devam_ediyor' ? 'bg-blue-100 text-blue-800' :
+                        inspection.status === 'rapor_yazildi' ? 'bg-green-100 text-green-800' :
+                        inspection.status === 'onaylandi' ? 'bg-emerald-100 text-emerald-800' :
+                        inspection.status === 'reddedildi' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {inspection.status === 'beklemede' ? 'Beklemede' :
+                         inspection.status === 'devam_ediyor' ? 'Devam Ediyor' :
+                         inspection.status === 'rapor_yazildi' ? 'Rapor Yazıldı' :
+                         inspection.status === 'onaylandi' ? 'Onaylandı' :
+                         inspection.status === 'reddedildi' ? 'Reddedildi' : 'Bilinmeyen'}
+                      </span>
                     </div>
                   </div>
-                  {inspection.report_data && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <p className="text-sm text-gray-600">
-                        <strong>Rapor Özeti:</strong> Kontrol maddeleri tamamlandı
+                  
+                  {/* Action Buttons */}
+                  <div className="mt-3 flex space-x-2">
+                    {inspection.status === 'beklemede' && (
+                      <button
+                        onClick={() => handleStatusUpdate(inspection.id, 'devam_ediyor')}
+                        className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
+                      >
+                        Denetime Başla
+                      </button>
+                    )}
+                    {inspection.status === 'devam_ediyor' && (
+                      <button
+                        onClick={() => handleStatusUpdate(inspection.id, 'rapor_yazildi')}
+                        className="px-3 py-1 bg-green-600 text-white text-sm rounded-md hover:bg-green-700"
+                      >
+                        Raporu Teslim Et
+                      </button>
+                    )}
+                    {inspection.status === 'reddedildi' && (
+                      <button
+                        onClick={() => handleStatusUpdate(inspection.id, 'devam_ediyor')}
+                        className="px-3 py-1 bg-orange-600 text-white text-sm rounded-md hover:bg-orange-700"
+                      >
+                        Düzeltmeye Başla
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Approval/Rejection Notes */}
+                  {inspection.approval_notes && inspection.status === 'reddedildi' && (
+                    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
+                      <p className="text-sm text-red-800">
+                        <strong>Red Nedeni:</strong> {inspection.approval_notes}
                       </p>
                     </div>
                   )}

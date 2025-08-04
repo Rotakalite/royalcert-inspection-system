@@ -210,6 +210,8 @@ const AdminDashboard = () => {
   const [templates, setTemplates] = useState([]);
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
+  const [showCustomerManagement, setShowCustomerManagement] = useState(false);
+  const [showInspectionPlanning, setShowInspectionPlanning] = useState(false);
 
   useEffect(() => {
     fetchStats();

@@ -229,7 +229,6 @@ const TemplateFormModal = ({ onClose, onSave, editingTemplate }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     onSave(formData);
-    onClose();
   };
 
   return (
@@ -260,7 +259,7 @@ const TemplateFormModal = ({ onClose, onSave, editingTemplate }) => {
               value={formData.name}
               onChange={(e) => setFormData({...formData, name: e.target.value})}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
-              placeholder="Template adı"
+              placeholder="Örn: CARASKAL, İSKELE, FORKLIFT"
             />
           </div>
           
@@ -272,7 +271,7 @@ const TemplateFormModal = ({ onClose, onSave, editingTemplate }) => {
               value={formData.equipment_type}
               onChange={(e) => setFormData({...formData, equipment_type: e.target.value})}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
-              placeholder="Ekipman tipi"
+              placeholder="Ekipman kategorisi"
             />
           </div>
           
@@ -282,7 +281,7 @@ const TemplateFormModal = ({ onClose, onSave, editingTemplate }) => {
               value={formData.description}
               onChange={(e) => setFormData({...formData, description: e.target.value})}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
-              placeholder="Template açıklaması"
+              placeholder="Template hakkında açıklama"
               rows="3"
             />
           </div>
@@ -292,9 +291,9 @@ const TemplateFormModal = ({ onClose, onSave, editingTemplate }) => {
               type="checkbox"
               checked={formData.is_active}
               onChange={(e) => setFormData({...formData, is_active: e.target.checked})}
-              className="mr-2"
+              className="mr-2 h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
             />
-            <label className="text-sm text-gray-700">Aktif</label>
+            <label className="text-sm text-gray-700">Bu template'i aktif olarak işaretle</label>
           </div>
           
           <div className="flex justify-end space-x-3 pt-4">

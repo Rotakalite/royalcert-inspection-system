@@ -122,6 +122,12 @@ class InspectionCreate(BaseModel):
     inspector_id: str
     planned_date: datetime
 
+class InspectionCreate(BaseModel):
+    customer_id: str
+    equipment_info: Dict[str, Any]
+    inspector_id: str
+    planned_date: datetime
+
 class InspectionUpdate(BaseModel):
     status: Optional[str] = None
     report_data: Optional[Dict[str, Any]] = None

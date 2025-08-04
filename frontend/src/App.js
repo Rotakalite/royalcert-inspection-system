@@ -1047,13 +1047,22 @@ const PlanlamaDashboard = () => {
           ) : (
             <div className="space-y-4">
               {customers.slice(0, 5).map((customer) => (
-                <div key={customer.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                  <div>
-                    <h3 className="font-medium text-gray-900">{customer.company_name}</h3>
-                    <p className="text-sm text-gray-500">{customer.contact_person}</p>
+                <div key={customer.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0 h-10 w-10 bg-red-100 rounded-full flex items-center justify-center">
+                      <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                      </svg>
+                    </div>
+                    <div className="ml-4">
+                      <h3 className="font-medium text-gray-900">{customer.company_name}</h3>
+                      <p className="text-sm text-gray-500">{customer.contact_person} • {customer.phone}</p>
+                    </div>
                   </div>
                   <div className="text-sm text-gray-500">
-                    {customer.equipments?.length || 0} ekipman
+                    <span className="inline-flex px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                      {customer.equipments?.length || 0} ekipman
+                    </span>
                   </div>
                 </div>
               ))}

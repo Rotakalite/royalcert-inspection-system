@@ -273,7 +273,7 @@ class CriticalFixesTester:
                     }
                 ],
                 "equipment_info": {
-                    "equipment_type": "TEST_EQUIPMENT",
+                    "equipment_type": f"TEST_EQUIPMENT_{unique_suffix}",
                     "serial_number": "TEST-12345",
                     "manufacturer": "Test Manufacturer"
                 },

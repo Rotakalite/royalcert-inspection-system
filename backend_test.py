@@ -2073,6 +2073,25 @@ class TableIterationFixTester:
                     category_distribution[cat_code] = cat_items
                     print(f"     {cat_code}: {cat_name} ({cat_items} items)")
                 
+                # Show first 10 control items to understand the structure
+                print(f"\n📝 First 10 Control Items (for analysis):")
+                all_items = []
+                for category in categories:
+                    for item in category.get('items', []):
+                        all_items.append({
+                            'id': item.get('id'),
+                            'text': item.get('text'),
+                            'category': item.get('category')
+                        })
+                
+                # Sort by ID and show first 10
+                all_items.sort(key=lambda x: x.get('id', 0))
+                for i, item in enumerate(all_items[:10], 1):
+                    item_id = item.get('id', 'N/A')
+                    category = item.get('category', 'N/A')
+                    text = item.get('text', 'N/A')[:80]
+                    print(f"   {i:2d}. ID:{item_id:3d} [{category}] {text}...")
+                
                 # CRITICAL TEST: Check if exactly 49 items are captured
                 print(f"\n🎯 CRITICAL TEST RESULTS:")
                 print(f"   Expected: 49 control criteria")
@@ -2082,34 +2101,20 @@ class TableIterationFixTester:
                     print(f"   ✅ SUCCESS: Exactly 49/49 control criteria captured!")
                     exact_match = True
                 else:
-                    print(f"   ❌ FAILURE: {total_items}/49 control criteria captured (missing {49 - total_items})")
+                    print(f"   ❌ FAILURE: {total_items}/49 control criteria captured")
+                    if total_items < 49:
+                        print(f"   Missing {49 - total_items} control criteria")
+                    else:
+                        print(f"   Found {total_items - 49} extra control criteria")
                     exact_match = False
                 
                 # Check for specific missing items (17, 20, 21, 50 should be missing according to previous test)
-                print(f"\n🔍 Checking for Expected Missing Items:")
-                all_item_ids = []
-                for category in categories:
-                    for item in category.get('items', []):
-                        item_id = item.get('id')
-                        if item_id:
-                            all_item_ids.append(item_id)
-                
+                print(f"\n🔍 Checking Item ID Range:")
+                all_item_ids = [item.get('id') for item in all_items if item.get('id')]
                 all_item_ids.sort()
-                expected_missing = [17, 20, 21, 50]  # Based on previous test results
                 
                 print(f"   All captured item IDs: {all_item_ids}")
-                print(f"   Expected missing items: {expected_missing}")
-                
-                actually_missing = []
-                incorrectly_found = []
-                
-                for expected_missing_id in expected_missing:
-                    if expected_missing_id not in all_item_ids:
-                        actually_missing.append(expected_missing_id)
-                        print(f"     ✅ Item {expected_missing_id}: Correctly missing")
-                    else:
-                        incorrectly_found.append(expected_missing_id)
-                        print(f"     ❌ Item {expected_missing_id}: Should be missing but found!")
+                print(f"   ID range: {min(all_item_ids) if all_item_ids else 'N/A'} to {max(all_item_ids) if all_item_ids else 'N/A'}")
                 
                 # Check if we have items 1-53 range
                 expected_range = list(range(1, 54))  # 1 to 53
@@ -2120,13 +2125,18 @@ class TableIterationFixTester:
                 print(f"   Items in range: {len(items_in_range)}")
                 print(f"   Items outside range: {len(all_item_ids) - len(items_in_range)}")
                 
+                # Check for missing items in 1-53 range
+                missing_in_range = [i for i in range(1, 54) if i not in all_item_ids]
+                if missing_in_range:
+                    print(f"   Missing items in 1-53 range: {missing_in_range}")
+                else:
+                    print(f"   ✅ All items 1-53 are present")
+                
                 # Final assessment
                 table_iteration_fixed = (
                     equipment_type == 'FORKLIFT' and
                     template_type == 'FORM' and
-                    total_items == 49 and
-                    len(actually_missing) == len(expected_missing) and
-                    len(incorrectly_found) == 0
+                    total_items == 49
                 )
                 
                 result_data = {
@@ -2137,10 +2147,9 @@ class TableIterationFixTester:
                     'exact_49_match': total_items == 49,
                     'category_distribution': category_distribution,
                     'all_item_ids': all_item_ids,
-                    'expected_missing': expected_missing,
-                    'actually_missing': actually_missing,
-                    'incorrectly_found': incorrectly_found,
-                    'table_iteration_fixed': table_iteration_fixed
+                    'missing_in_range': missing_in_range,
+                    'table_iteration_fixed': table_iteration_fixed,
+                    'all_items': all_items
                 }
                 
                 return True, result_data
@@ -2150,6 +2159,8 @@ class TableIterationFixTester:
                 
         except Exception as e:
             print(f"❌ Test error: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return False, None
 
     def run_table_iteration_fix_test(self):

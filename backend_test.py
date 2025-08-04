@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Backend API Testing for RoyalCert Template Upload System
-Tests the new template upload system for Word document parsing and bulk upload functionality
-Focus: Testing Word document parsing, template creation, and authentication
+Backend API Testing for RoyalCert Template Upload System - FORM and REPORT Types
+Tests the updated template upload system that handles FORM and REPORT types for the same equipment
+Focus: Testing Word document parsing with equipment_type and template_type separation
 """
 
 import requests

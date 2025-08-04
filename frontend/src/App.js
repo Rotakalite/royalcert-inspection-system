@@ -317,6 +317,134 @@ const TemplateFormModal = ({ onClose, onSave, editingTemplate }) => {
   );
 };
 
+// Template Upload Modal Component
+const TemplateUploadModal = ({ onClose, selectedFiles, onFileSelect, onSingleUpload, onBulkUpload, uploading }) => {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold text-gray-900">Template Yükle</h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Instructions */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-start">
+              <svg className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <div className="text-sm text-blue-800">
+                <p className="font-medium mb-1">Template Yükleme Talimatları:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Sadece Word dosyaları (.docx, .doc) desteklenmektedir</li>
+                  <li>Maksimum 50 dosya aynı anda yükleyebilirsiniz</li>
+                  <li>Her dosya otomatik olarak parse edilip template'e dönüştürülür</li>
+                  <li>Aynı isimde template varsa yükleme başarısız olur</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* File Input */}
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+            <div className="space-y-4">
+              <div className="flex justify-center">
+                <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                </svg>
+              </div>
+              <div>
+                <label htmlFor="template-files" className="cursor-pointer">
+                  <span className="mt-2 block text-sm font-medium text-gray-900">
+                    Dosya seçmek için tıklayın veya sürükleyip bırakın
+                  </span>
+                  <span className="mt-1 block text-xs text-gray-500">
+                    Word dosyaları (.docx, .doc)
+                  </span>
+                </label>
+                <input
+                  id="template-files"
+                  type="file"
+                  multiple
+                  accept=".docx,.doc"
+                  onChange={onFileSelect}
+                  className="hidden"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Selected Files */}
+          {selectedFiles.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium text-gray-900">
+                Seçilen Dosyalar ({selectedFiles.length})
+              </h3>
+              <div className="max-h-40 overflow-y-auto space-y-1">
+                {selectedFiles.map((file, index) => (
+                  <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <div className="flex items-center">
+                      <svg className="w-4 h-4 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                      </svg>
+                      <span className="text-sm text-gray-700">{file.name}</span>
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      {(file.size / 1024).toFixed(1)} KB
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Action Buttons */}
+        <div className="px-6 py-4 border-t border-gray-200 flex justify-between">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+            disabled={uploading}
+          >
+            İptal
+          </button>
+          <div className="space-x-3">
+            {selectedFiles.length === 1 && (
+              <button
+                onClick={onSingleUpload}
+                disabled={uploading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              >
+                {uploading ? 'Yükleniyor...' : 'Tek Dosya Yükle'}
+              </button>
+            )}
+            {selectedFiles.length > 1 && (
+              <button
+                onClick={onBulkUpload}
+                disabled={uploading}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+              >
+                {uploading ? 'Yükleniyor...' : `Toplu Yükle (${selectedFiles.length} dosya)`}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const AdminDashboard = () => {
   const [stats, setStats] = useState({});
   const [users, setUsers] = useState([]);

@@ -1231,14 +1231,29 @@ def parse_word_document(file_content: bytes, filename: str) -> dict:
                 table_data.append(row_data)
             tables.append(table_data)
         
-        # Determine equipment type from filename
+        # Determine equipment type and template type from filename
         equipment_type = "UNKNOWN"
-        if "FORKL" in filename.upper():
+        template_type = "FORM"  # Default to form
+        
+        filename_upper = filename.upper()
+        
+        # Extract equipment type (ignore MUAYENE, FORMU, RAPORU keywords)
+        if "FORKL" in filename_upper:
             equipment_type = "FORKLIFT"
-        elif "CARASKAL" in filename.upper():
+        elif "CARASKAL" in filename_upper:
             equipment_type = "CARASKAL"
-        elif "ISKELE" in filename.upper():
+        elif "ISKELE" in filename_upper:
             equipment_type = "ISKELE"
+        elif "VINC" in filename_upper or "CRANE" in filename_upper:
+            equipment_type = "VINC"
+        elif "ASANSÖR" in filename_upper or "ELEVATOR" in filename_upper:
+            equipment_type = "ASANSÖR"
+        
+        # Determine template type
+        if "RAPOR" in filename_upper:
+            template_type = "REPORT"
+        elif "FORM" in filename_upper:
+            template_type = "FORM"
         
         # Parse control items from text
         control_items = []

@@ -1383,8 +1383,8 @@ def parse_universal_template_structure(text: str, tables: list, equipment_type: 
     # Extract control items using existing logic
     control_items = []
     
-    # Look for numbered items (1., 2., 3., etc.) in text - BETTER PATTERN
-    item_pattern = r'^(\d+)\.\s*(.+)$'
+    # Look for numbered items (1., 2., 3., etc.) in text - FIXED PATTERN
+    item_pattern = r'(\d+)\.\s*(.+)'  # FIXED: Match anywhere in line, not just at start
     matches = re.findall(item_pattern, text, re.MULTILINE)
     
     # Smart filtering to get REAL control items only

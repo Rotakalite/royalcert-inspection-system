@@ -351,7 +351,7 @@ const TemplateUploadModal = ({ onClose, selectedFiles, onFileSelect, onSingleUpl
               <div className="text-sm text-blue-800">
                 <p className="font-medium mb-1">Template Yükleme Talimatları:</p>
                 <ul className="list-disc list-inside space-y-1">
-                  <li>Sadece Word dosyaları (.docx, .doc) desteklenmektedir</li>
+                  <li>Word dosyaları (.docx, .doc) ve PDF dosyaları (.pdf) desteklenmektedir</li>
                   <li>Maksimum 50 dosya aynı anda yükleyebilirsiniz</li>
                   <li>Her dosya otomatik olarak parse edilip template'e dönüştürülür</li>
                   <li>Aynı isimde template varsa yükleme başarısız olur</li>

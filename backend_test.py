@@ -958,13 +958,453 @@ class OrphanedInspectorIdsTester:
         
         return test_results
 
+class TemplateControlItemsQualityTester:
+    def __init__(self):
+        self.session = requests.Session()
+        self.token = None
+        self.user_info = None
+        self.forklift_templates = []
+        
+    def authenticate(self):
+        """Authenticate with admin credentials"""
+        print("🔐 Testing Authentication...")
+        
+        login_data = {
+            "username": ADMIN_USERNAME,
+            "password": ADMIN_PASSWORD
+        }
+        
+        try:
+            response = self.session.post(f"{BACKEND_URL}/auth/login", json=login_data)
+            print(f"Login Response Status: {response.status_code}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.token = data["access_token"]
+                self.user_info = data["user"]
+                
+                # Set authorization header for future requests
+                self.session.headers.update({
+                    "Authorization": f"Bearer {self.token}"
+                })
+                
+                print(f"✅ Authentication successful")
+                print(f"   User: {self.user_info['full_name']} ({self.user_info['role']})")
+                return True
+            else:
+                print(f"❌ Authentication failed: {response.text}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Authentication error: {str(e)}")
+            return False
+
+    def get_forklift_templates(self):
+        """Get current FORKLIFT templates from the system"""
+        print("\n📋 Getting Current FORKLIFT Templates...")
+        
+        try:
+            response = self.session.get(f"{BACKEND_URL}/equipment-templates")
+            print(f"Equipment Templates Status: {response.status_code}")
+            
+            if response.status_code == 200:
+                templates_data = response.json()
+                
+                # Find FORKLIFT templates
+                forklift_templates = [t for t in templates_data if t.get('equipment_type') == 'FORKLIFT']
+                self.forklift_templates = forklift_templates
+                
+                print(f"✅ Found {len(forklift_templates)} FORKLIFT templates")
+                
+                for template in forklift_templates:
+                    template_type = template.get('template_type', 'UNKNOWN')
+                    template_name = template.get('name', 'UNNAMED')
+                    total_items = sum(len(cat.get('items', [])) for cat in template.get('categories', []))
+                    print(f"   - {template_name} ({template_type}): {total_items} control items")
+                
+                return True, forklift_templates
+            else:
+                print(f"❌ Failed to get templates: {response.text}")
+                return False, []
+                
+        except Exception as e:
+            print(f"❌ Get templates error: {str(e)}")
+            return False, []
+
+    def analyze_forklift_muayene_formu_quality(self):
+        """Analyze the quality of FORKLIFT MUAYENE FORMU control items"""
+        print("\n🔍 Analyzing FORKLIFT MUAYENE FORMU Control Items Quality...")
+        
+        # Find FORKLIFT MUAYENE FORMU template
+        formu_template = None
+        for template in self.forklift_templates:
+            if template.get('template_type') == 'FORM' or 'FORMU' in template.get('name', '').upper():
+                formu_template = template
+                break
+        
+        if not formu_template:
+            print("❌ FORKLIFT MUAYENE FORMU template not found")
+            return False, None
+        
+        print(f"✅ Found FORKLIFT MUAYENE FORMU: {formu_template.get('name')}")
+        
+        # Extract first 10-15 control items with full text
+        categories = formu_template.get('categories', [])
+        all_control_items = []
+        
+        for category in categories:
+            items = category.get('items', [])
+            for item in items:
+                all_control_items.append({
+                    'id': item.get('id'),
+                    'text': item.get('text'),
+                    'category': item.get('category'),
+                    'category_name': category.get('name', 'UNKNOWN')
+                })
+        
+        # Sort by ID and get first 15 items
+        all_control_items.sort(key=lambda x: x.get('id', 0))
+        first_15_items = all_control_items[:15]
+        
+        print(f"\n📝 First 15 Control Items with Full Text:")
+        print("=" * 100)
+        
+        for i, item in enumerate(first_15_items, 1):
+            item_id = item.get('id', 'N/A')
+            category = item.get('category', 'N/A')
+            category_name = item.get('category_name', 'N/A')
+            text = item.get('text', 'N/A')
+            
+            print(f"{i:2d}. ID: {item_id:3d} | Cat: {category} ({category_name})")
+            print(f"    Text: {text}")
+            print(f"    Length: {len(text)} chars")
+            print("-" * 100)
+        
+        return True, {
+            'template': formu_template,
+            'total_items': len(all_control_items),
+            'first_15_items': first_15_items,
+            'all_items': all_control_items
+        }
+
+    def analyze_control_item_quality(self, analysis_data):
+        """Analyze the quality of control items for parsing issues"""
+        print("\n🔬 Analyzing Control Item Quality for Parsing Issues...")
+        
+        all_items = analysis_data.get('all_items', [])
+        total_items = len(all_items)
+        
+        print(f"Total Control Items: {total_items}")
+        
+        # Quality Analysis Metrics
+        quality_issues = {
+            'too_short': [],
+            'too_long': [],
+            'repetitive': [],
+            'non_control_items': [],
+            'broken_text': [],
+            'turkish_corruption': []
+        }
+        
+        seen_texts = set()
+        
+        for item in all_items:
+            text = item.get('text', '')
+            item_id = item.get('id', 'N/A')
+            
+            # Check 1: Text length issues
+            if len(text) < 10:
+                quality_issues['too_short'].append({'id': item_id, 'text': text, 'length': len(text)})
+            elif len(text) > 200:
+                quality_issues['too_long'].append({'id': item_id, 'text': text, 'length': len(text)})
+            
+            # Check 2: Repetitive items
+            text_normalized = text.lower().strip()
+            if text_normalized in seen_texts:
+                quality_issues['repetitive'].append({'id': item_id, 'text': text})
+            seen_texts.add(text_normalized)
+            
+            # Check 3: Non-control items (headers, labels, etc.)
+            non_control_patterns = [
+                'GENEL', 'BİLGİLER', 'MUAYENE', 'KONTROL', 'ETİKET', 'TEST', 'FORM', 'RAPOR',
+                'BAŞLIK', 'TABLE', 'DEĞER', 'DURUM', 'TARİH', 'NO', 'ADI', 'KODU', 'MARKASı',
+                'TİPİ', 'SERİ', 'İMAL', 'YIL', 'KAPASITE', 'YÜKSEKLIK', 'MESAFE', 'ÖLÇÜM'
+            ]
+            
+            if any(pattern in text.upper() for pattern in non_control_patterns):
+                quality_issues['non_control_items'].append({'id': item_id, 'text': text})
+            
+            # Check 4: Broken/incomplete text
+            if text.endswith('...') or text.startswith('...') or '...' in text:
+                quality_issues['broken_text'].append({'id': item_id, 'text': text})
+            
+            # Check 5: Turkish character corruption
+            turkish_chars = 'ğüşıöçĞÜŞİÖÇ'
+            if any(char in text for char in turkish_chars):
+                # Check for common corruption patterns
+                corruption_patterns = ['Ä±', 'Å', 'Ã', 'â€™', 'â€œ', 'â€']
+                if any(pattern in text for pattern in corruption_patterns):
+                    quality_issues['turkish_corruption'].append({'id': item_id, 'text': text})
+        
+        # Print Quality Analysis Results
+        print("\n📊 Quality Analysis Results:")
+        print("=" * 80)
+        
+        for issue_type, issues in quality_issues.items():
+            count = len(issues)
+            percentage = (count / total_items * 100) if total_items > 0 else 0
+            status = "✅" if count == 0 else "⚠️" if count < total_items * 0.1 else "❌"
+            
+            print(f"{status} {issue_type.replace('_', ' ').title()}: {count} items ({percentage:.1f}%)")
+            
+            # Show examples of issues
+            if issues and count <= 5:
+                for issue in issues:
+                    print(f"     ID {issue['id']}: {issue['text'][:80]}...")
+            elif issues and count > 5:
+                print(f"     Showing first 3 examples:")
+                for issue in issues[:3]:
+                    print(f"     ID {issue['id']}: {issue['text'][:80]}...")
+                print(f"     ... and {count - 3} more")
+        
+        return quality_issues
+
+    def compare_with_expected_structure(self, analysis_data):
+        """Compare parsed items with expected forklift inspection structure"""
+        print("\n🎯 Comparing with Expected Forklift Inspection Structure...")
+        
+        # Expected real forklift inspection control items
+        expected_forklift_items = [
+            "Yönlendirme kumandaları ve işaretleri",
+            "Sürme ve frenleme kumandaları ve işaretleri", 
+            "Operatör koltuğu",
+            "Kaldırma zinciri bağlantıları ve deformasyon",
+            "Çatallar ve çatal taşıyıcısı",
+            "Mast ve kaldırma silindiri",
+            "Hidrolik sistem ve hortumlar",
+            "Fren sistemi ve performansı",
+            "Direksiyon sistemi",
+            "Lastikler ve jantlar",
+            "Aydınlatma sistemi",
+            "Uyarı sistemleri (sesli ve görsel)",
+            "Güvenlik kemeri ve koruyucular",
+            "Yakıt sistemi ve emisyon",
+            "Motor ve soğutma sistemi"
+        ]
+        
+        all_items = analysis_data.get('all_items', [])
+        parsed_texts = [item.get('text', '') for item in all_items]
+        
+        print(f"Expected vs Parsed Comparison:")
+        print("=" * 80)
+        
+        matches_found = 0
+        similar_matches = 0
+        
+        for expected_item in expected_forklift_items:
+            print(f"\n🔍 Expected: '{expected_item}'")
+            
+            # Look for exact matches
+            exact_match = False
+            for parsed_text in parsed_texts:
+                if expected_item.lower() in parsed_text.lower():
+                    exact_match = True
+                    print(f"   ✅ Found similar: '{parsed_text}'")
+                    matches_found += 1
+                    break
+            
+            if not exact_match:
+                # Look for partial matches
+                keywords = expected_item.lower().split()
+                best_match = None
+                best_score = 0
+                
+                for parsed_text in parsed_texts:
+                    score = sum(1 for keyword in keywords if keyword in parsed_text.lower())
+                    if score > best_score and score >= len(keywords) * 0.5:  # At least 50% keyword match
+                        best_score = score
+                        best_match = parsed_text
+                
+                if best_match:
+                    print(f"   🔶 Partial match: '{best_match}' (score: {best_score}/{len(keywords)})")
+                    similar_matches += 1
+                else:
+                    print(f"   ❌ No match found")
+        
+        print(f"\n📊 Matching Results:")
+        print(f"   Exact/Similar matches: {matches_found}/{len(expected_forklift_items)} ({matches_found/len(expected_forklift_items)*100:.1f}%)")
+        print(f"   Partial matches: {similar_matches}/{len(expected_forklift_items)} ({similar_matches/len(expected_forklift_items)*100:.1f}%)")
+        print(f"   Total coverage: {(matches_found + similar_matches)/len(expected_forklift_items)*100:.1f}%")
+        
+        return {
+            'expected_items': expected_forklift_items,
+            'exact_matches': matches_found,
+            'partial_matches': similar_matches,
+            'total_expected': len(expected_forklift_items),
+            'coverage_percentage': (matches_found + similar_matches)/len(expected_forklift_items)*100
+        }
+
+    def identify_parsing_problems(self, quality_issues, comparison_results):
+        """Identify specific parsing problems and provide examples"""
+        print("\n🚨 Identifying Parsing Problems...")
+        
+        problems_identified = []
+        
+        # Problem 1: Items too short/fragmented
+        if quality_issues['too_short']:
+            problems_identified.append({
+                'type': 'Fragmented Items',
+                'severity': 'High',
+                'count': len(quality_issues['too_short']),
+                'description': 'Control items are too short and appear fragmented',
+                'examples': quality_issues['too_short'][:3]
+            })
+        
+        # Problem 2: Non-control items mixed in
+        if quality_issues['non_control_items']:
+            problems_identified.append({
+                'type': 'Header/Label Contamination',
+                'severity': 'Medium',
+                'count': len(quality_issues['non_control_items']),
+                'description': 'Headers, labels, and table cells mixed with control items',
+                'examples': quality_issues['non_control_items'][:3]
+            })
+        
+        # Problem 3: Repetitive items
+        if quality_issues['repetitive']:
+            problems_identified.append({
+                'type': 'Repetitive Items',
+                'severity': 'Medium',
+                'count': len(quality_issues['repetitive']),
+                'description': 'Duplicate or repetitive control items found',
+                'examples': quality_issues['repetitive'][:3]
+            })
+        
+        # Problem 4: Turkish character corruption
+        if quality_issues['turkish_corruption']:
+            problems_identified.append({
+                'type': 'Turkish Character Corruption',
+                'severity': 'High',
+                'count': len(quality_issues['turkish_corruption']),
+                'description': 'Turkish characters are corrupted in control items',
+                'examples': quality_issues['turkish_corruption'][:3]
+            })
+        
+        # Problem 5: Low coverage of expected items
+        if comparison_results['coverage_percentage'] < 50:
+            problems_identified.append({
+                'type': 'Poor Content Coverage',
+                'severity': 'High',
+                'count': 1,
+                'description': f'Only {comparison_results["coverage_percentage"]:.1f}% coverage of expected forklift inspection items',
+                'examples': []
+            })
+        
+        print("🔍 Parsing Problems Identified:")
+        print("=" * 80)
+        
+        if not problems_identified:
+            print("✅ No significant parsing problems identified!")
+            return problems_identified
+        
+        for i, problem in enumerate(problems_identified, 1):
+            severity_icon = "🚨" if problem['severity'] == 'High' else "⚠️"
+            print(f"\n{severity_icon} Problem {i}: {problem['type']} ({problem['severity']} Severity)")
+            print(f"   Count: {problem['count']}")
+            print(f"   Description: {problem['description']}")
+            
+            if problem['examples']:
+                print(f"   Examples:")
+                for example in problem['examples']:
+                    if isinstance(example, dict):
+                        print(f"     ID {example.get('id', 'N/A')}: {example.get('text', 'N/A')[:60]}...")
+                    else:
+                        print(f"     {str(example)[:60]}...")
+        
+        return problems_identified
+
+    def run_template_quality_analysis(self):
+        """Run complete template control items quality analysis"""
+        print("🚀 Starting Template Control Items Quality Analysis")
+        print("=" * 80)
+        
+        test_results = {}
+        
+        # Step 1: Authentication
+        test_results['authentication'] = self.authenticate()
+        if not test_results['authentication']:
+            print("\n❌ Cannot proceed without authentication")
+            return test_results
+        
+        # Step 2: Get FORKLIFT templates
+        success, templates = self.get_forklift_templates()
+        test_results['get_templates'] = success
+        
+        if not success or not templates:
+            print("\n❌ No FORKLIFT templates found for analysis")
+            return test_results
+        
+        # Step 3: Analyze FORKLIFT MUAYENE FORMU quality
+        success, analysis_data = self.analyze_forklift_muayene_formu_quality()
+        test_results['analyze_formu'] = success
+        
+        if not success:
+            print("\n❌ Failed to analyze FORKLIFT MUAYENE FORMU")
+            return test_results
+        
+        # Step 4: Analyze control item quality
+        quality_issues = self.analyze_control_item_quality(analysis_data)
+        test_results['quality_analysis'] = True
+        
+        # Step 5: Compare with expected structure
+        comparison_results = self.compare_with_expected_structure(analysis_data)
+        test_results['structure_comparison'] = True
+        
+        # Step 6: Identify parsing problems
+        problems = self.identify_parsing_problems(quality_issues, comparison_results)
+        test_results['problem_identification'] = True
+        
+        # Final Summary
+        print("\n" + "=" * 80)
+        print("📋 TEMPLATE CONTROL ITEMS QUALITY ANALYSIS SUMMARY")
+        print("=" * 80)
+        
+        template_name = analysis_data['template'].get('name', 'UNKNOWN')
+        total_items = analysis_data['total_items']
+        
+        print(f"Template Analyzed: {template_name}")
+        print(f"Total Control Items: {total_items}")
+        print(f"Expected Coverage: {comparison_results['coverage_percentage']:.1f}%")
+        print(f"Problems Identified: {len(problems)}")
+        
+        # Overall assessment
+        if len(problems) == 0:
+            print(f"\n🎉 EXCELLENT: Template parsing quality is very good!")
+        elif len(problems) <= 2:
+            print(f"\n✅ GOOD: Template parsing quality is acceptable with minor issues")
+        else:
+            print(f"\n⚠️ NEEDS IMPROVEMENT: Template parsing has significant quality issues")
+        
+        # Recommendations
+        print(f"\n💡 Recommendations:")
+        if any(p['type'] == 'Fragmented Items' for p in problems):
+            print("   - Improve text extraction to capture complete control item descriptions")
+        if any(p['type'] == 'Header/Label Contamination' for p in problems):
+            print("   - Enhance filtering to exclude headers, labels, and table formatting")
+        if any(p['type'] == 'Turkish Character Corruption' for p in problems):
+            print("   - Fix character encoding issues during Word document parsing")
+        if comparison_results['coverage_percentage'] < 70:
+            print("   - Review parsing algorithm to capture more relevant forklift inspection items")
+        
+        return test_results
+
 if __name__ == "__main__":
-    # Run the orphaned inspector IDs data fix test
-    print("🎯 EXECUTING ORPHANED INSPECTOR IDS DATA FIX TEST")
+    # Run the template control items quality analysis
+    print("🎯 EXECUTING TEMPLATE CONTROL ITEMS QUALITY CHECK")
     print("="*80)
     
-    tester = OrphanedInspectorIdsTester()
-    results = tester.run_orphaned_inspector_ids_test()
+    tester = TemplateControlItemsQualityTester()
+    results = tester.run_template_quality_analysis()
 
 class RoyalCertPDFReportingTester:
     def __init__(self):

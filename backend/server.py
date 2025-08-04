@@ -916,7 +916,7 @@ async def get_inspection_form(inspection_id: str, current_user: User = Depends(g
         "equipment_type": equipment_type,
         "customer_name": customer["company_name"],
         "equipment_serial": inspection["equipment_info"].get("serial_number", ""),
-        "control_items": template["categories"][0]["items"] if template["categories"] else [],
+        "control_items": [item for category in template["categories"] for item in category["items"]] if template["categories"] else [],
         "form_data": existing_data.get("form_data", {}),
         "general_info": existing_data.get("general_info", {}),
         "equipment_info": existing_data.get("equipment_info", {}),

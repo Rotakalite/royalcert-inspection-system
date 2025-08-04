@@ -1205,6 +1205,265 @@ async def startup_event():
             await db.equipment_templates.insert_one(template_dict)
             print("✅ Caraskal template initialized automatically")
 
+# ===================== TEMPLATE UPLOAD & WORD PARSING =====================
+
+def parse_word_document(file_content: bytes, filename: str) -> dict:
+    """Parse Word document to extract inspection template structure"""
+    try:
+        # Read Word document
+        doc = Document(io.BytesIO(file_content))
+        
+        # Extract document text
+        full_text = []
+        for paragraph in doc.paragraphs:
+            full_text.append(paragraph.text)
+        
+        text = '\n'.join(full_text)
+        
+        # Extract table data for better structure parsing
+        tables = []
+        for table in doc.tables:
+            table_data = []
+            for row in table.rows:
+                row_data = []
+                for cell in row.cells:
+                    row_data.append(cell.text.strip())
+                table_data.append(row_data)
+            tables.append(table_data)
+        
+        # Determine equipment type from filename
+        equipment_type = "UNKNOWN"
+        if "FORKL" in filename.upper():
+            equipment_type = "FORKLIFT"
+        elif "CARASKAL" in filename.upper():
+            equipment_type = "CARASKAL"
+        elif "ISKELE" in filename.upper():
+            equipment_type = "ISKELE"
+        
+        # Parse control items from text
+        control_items = []
+        categories = {}
+        
+        # Look for numbered items (1., 2., 3., etc.) in text
+        item_pattern = r'(\d+)\.\s*([^\n]+)'
+        matches = re.findall(item_pattern, text)
+        
+        current_category = 'A'
+        category_count = 0
+        
+        for match in matches:
+            item_number = int(match[0])
+            item_text = match[1].strip()
+            
+            # Skip if item text is too short or contains only symbols
+            if len(item_text) < 5 or item_text in ['D', 'U', 'UD', 'U.Y']:
+                continue
+            
+            # Determine category (A-H, roughly 6-7 items per category)
+            if item_number <= 12:
+                current_category = 'A' if item_number <= 6 else 'B'
+            elif item_number <= 24:
+                current_category = 'C' if item_number <= 18 else 'D'
+            elif item_number <= 36:
+                current_category = 'E' if item_number <= 30 else 'F'
+            elif item_number <= 48:
+                current_category = 'G' if item_number <= 42 else 'H'
+            else:
+                current_category = 'H'
+            
+            # Add to categories count
+            if current_category not in categories:
+                categories[current_category] = 0
+            categories[current_category] += 1
+            
+            control_items.append({
+                "id": item_number,
+                "text": item_text,
+                "category": current_category,
+                "has_dropdown": True,  # All items have U/UD/U.Y dropdown
+                "has_comment": True,   # All items have comment field
+                "has_photo": True      # All items can have photos
+            })
+        
+        # If no numbered items found, try to extract from tables
+        if not control_items and tables:
+            item_id = 1
+            for table in tables:
+                for row in table:
+                    for cell_text in row:
+                        # Look for control item patterns
+                        if len(cell_text) > 10 and not any(x in cell_text.upper() for x in ['GENEL', 'BİLGİLER', 'MUAYENE', 'TEST', 'ETİKET']):
+                            # Determine category
+                            if item_id <= 12:
+                                current_category = 'A' if item_id <= 6 else 'B'
+                            elif item_id <= 24:
+                                current_category = 'C' if item_id <= 18 else 'D'
+                            elif item_id <= 36:
+                                current_category = 'E' if item_id <= 30 else 'F'
+                            else:
+                                current_category = 'G' if item_id <= 42 else 'H'
+                            
+                            control_items.append({
+                                "id": item_id,
+                                "text": cell_text.strip(),
+                                "category": current_category,
+                                "has_dropdown": True,
+                                "has_comment": True,
+                                "has_photo": True
+                            })
+                            item_id += 1
+        
+        # Create template structure
+        template_data = {
+            "name": filename.replace('.docx', '').replace('_', ' ').upper(),
+            "equipment_type": equipment_type,
+            "description": f"Auto-parsed from {filename}",
+            "control_items": control_items[:50],  # Limit to 50 items max
+            "categories": len(set(item.get('category', 'A') for item in control_items)),
+            "total_items": len(control_items),
+            "parsed_from": filename,
+            "parse_date": datetime.utcnow(),
+            "is_active": True
+        }
+        
+        return template_data
+        
+    except Exception as e:
+        print(f"Error parsing Word document {filename}: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Failed to parse Word document: {str(e)}")
+
+@app.post("/api/equipment-templates/upload")
+async def upload_template_document(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    """Upload and parse Word document to create equipment template"""
+    
+    # Check authorization (only admin can upload templates)
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Only admins can upload templates")
+    
+    # Validate file type
+    if not file.filename.endswith(('.docx', '.doc')):
+        raise HTTPException(status_code=400, detail="Only Word documents (.docx, .doc) are supported")
+    
+    try:
+        # Read file content
+        file_content = await file.read()
+        
+        # Parse Word document
+        template_data = parse_word_document(file_content, file.filename)
+        
+        # Add metadata
+        template_data["id"] = str(uuid.uuid4())
+        template_data["created_by"] = current_user.id
+        template_data["created_at"] = datetime.utcnow()
+        template_data["updated_at"] = datetime.utcnow()
+        
+        # Check if template with same name already exists
+        existing_template = await db.equipment_templates.find_one({
+            "name": template_data["name"]
+        })
+        
+        if existing_template:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Template with name '{template_data['name']}' already exists"
+            )
+        
+        # Insert template into database
+        await db.equipment_templates.insert_one(template_data)
+        
+        return {
+            "message": "Template uploaded and parsed successfully",
+            "template": {
+                "id": template_data["id"],
+                "name": template_data["name"],
+                "equipment_type": template_data["equipment_type"],
+                "total_items": template_data["total_items"],
+                "categories": template_data["categories"]
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Template upload error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Template upload failed: {str(e)}")
+
+@app.post("/api/equipment-templates/bulk-upload")
+async def bulk_upload_templates(
+    files: List[UploadFile] = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    """Bulk upload multiple Word documents to create equipment templates"""
+    
+    # Check authorization
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Only admins can upload templates")
+    
+    if len(files) > 50:
+        raise HTTPException(status_code=400, detail="Maximum 50 files can be uploaded at once")
+    
+    results = {
+        "successful": [],
+        "failed": [],
+        "total_files": len(files)
+    }
+    
+    for file in files:
+        try:
+            # Validate file type
+            if not file.filename.endswith(('.docx', '.doc')):
+                results["failed"].append({
+                    "filename": file.filename,
+                    "error": "Only Word documents (.docx, .doc) are supported"
+                })
+                continue
+            
+            # Read and parse file
+            file_content = await file.read()
+            template_data = parse_word_document(file_content, file.filename)
+            
+            # Add metadata
+            template_data["id"] = str(uuid.uuid4())
+            template_data["created_by"] = current_user.id
+            template_data["created_at"] = datetime.utcnow()
+            template_data["updated_at"] = datetime.utcnow()
+            
+            # Check if template already exists
+            existing_template = await db.equipment_templates.find_one({
+                "name": template_data["name"]
+            })
+            
+            if existing_template:
+                results["failed"].append({
+                    "filename": file.filename,
+                    "error": f"Template '{template_data['name']}' already exists"
+                })
+                continue
+            
+            # Insert template
+            await db.equipment_templates.insert_one(template_data)
+            
+            results["successful"].append({
+                "filename": file.filename,
+                "template_name": template_data["name"],
+                "equipment_type": template_data["equipment_type"],
+                "total_items": template_data["total_items"]
+            })
+            
+        except Exception as e:
+            results["failed"].append({
+                "filename": file.filename,
+                "error": str(e)
+            })
+    
+    return {
+        "message": f"Bulk upload completed. {len(results['successful'])} successful, {len(results['failed'])} failed",
+        "results": results
+    }
+
 # ===================== HEALTH CHECK =====================
 
 @app.get("/api/health")

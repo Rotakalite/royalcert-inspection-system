@@ -1617,6 +1617,462 @@ const InspectionPlanning = ({ onBack }) => {
   );
 };
 
+// Create Inspection Form Component - Phase 5.2
+const CreateInspectionForm = ({ customers, inspectors, onBack, onSuccess }) => {
+  const [selectedCustomer, setSelectedCustomer] = useState('');
+  const [selectedEquipment, setSelectedEquipment] = useState('');
+  const [selectedInspector, setSelectedInspector] = useState('');
+  const [inspectionDate, setInspectionDate] = useState('');
+  const [inspectionType, setInspectionType] = useState('PERİYODİK');
+  const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const selectedCustomerData = customers.find(c => c.id === selectedCustomer);
+  const availableEquipments = selectedCustomerData?.equipments || [];
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedCustomer || !selectedInspector || !inspectionDate) {
+      alert('Lütfen zorunlu alanları doldurun');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const equipmentData = availableEquipments.find((_, index) => index.toString() === selectedEquipment) || {};
+      
+      const inspectionData = {
+        customer_id: selectedCustomer,
+        inspector_id: selectedInspector,
+        planned_date: new Date(inspectionDate).toISOString(),
+        equipment_info: {
+          equipment_type: equipmentData.equipment_type || equipmentData.muayene_alt_alani || 'Genel Ekipman',
+          serial_number: equipmentData.serial_number || '',
+          capacity: equipmentData.capacity || '',
+          manufacturing_year: equipmentData.manufacturing_year || '',
+          inspection_type: inspectionType,
+          notes: notes
+        }
+      };
+
+      await api.post('/inspections', inspectionData);
+      alert('Denetim başarıyla planlandı!');
+      onSuccess();
+    } catch (error) {
+      console.error('Inspection creation error:', error);
+      alert('Denetim planlama hatası: ' + (error.response?.data?.detail || 'Bilinmeyen hata'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Get today's date for min date
+  const today = new Date().toISOString().split('T')[0];
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">Yeni Denetim Planla</h1>
+        <button
+          onClick={onBack}
+          className="px-4 py-2 text-gray-600 hover:text-gray-800"
+        >
+          ← Geri Dön
+        </button>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Denetim Detayları</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Customer Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Müşteri Seçimi *
+              </label>
+              <select
+                value={selectedCustomer}
+                onChange={(e) => {
+                  setSelectedCustomer(e.target.value);
+                  setSelectedEquipment(''); // Reset equipment selection
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                required
+              >
+                <option value="">Müşteri seçin...</option>
+                {customers.map((customer) => (
+                  <option key={customer.id} value={customer.id}>
+                    {customer.company_name} ({customer.contact_person})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Equipment Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Ekipman Seçimi
+              </label>
+              <select
+                value={selectedEquipment}
+                onChange={(e) => setSelectedEquipment(e.target.value)}
+                disabled={!selectedCustomer}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-600 focus:border-transparent disabled:bg-gray-100"
+              >
+                <option value="">Ekipman seçin...</option>
+                {availableEquipments.map((equipment, index) => (
+                  <option key={index} value={index.toString()}>
+                    {equipment.equipment_type || equipment.muayene_alt_alani || 'Bilinmeyen Ekipman'}
+                    {equipment.serial_number && ` (SN: ${equipment.serial_number})`}
+                  </option>
+                ))}
+              </select>
+              {selectedCustomer && availableEquipments.length === 0 && (
+                <p className="text-sm text-gray-500 mt-1">Bu müşteri için kayıtlı ekipman bulunmuyor</p>
+              )}
+            </div>
+
+            {/* Inspector Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Denetçi Atama *
+              </label>
+              <select
+                value={selectedInspector}
+                onChange={(e) => setSelectedInspector(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                required
+              >
+                <option value="">Denetçi seçin...</option>
+                {inspectors.filter(inspector => inspector.is_active).map((inspector) => (
+                  <option key={inspector.id} value={inspector.id}>
+                    {inspector.full_name} ({inspector.email})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Inspection Date */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Denetim Tarihi *
+              </label>
+              <input
+                type="date"
+                value={inspectionDate}
+                onChange={(e) => setInspectionDate(e.target.value)}
+                min={today}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                required
+              />
+            </div>
+
+            {/* Inspection Type */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Denetim Türü
+              </label>
+              <select
+                value={inspectionType}
+                onChange={(e) => setInspectionType(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+              >
+                <option value="İLK MONTAJ">İlk Montaj</option>
+                <option value="PERİYODİK">Periyodik</option>
+                <option value="TAKİP">Takip</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div className="mt-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Notlar
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows="3"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+              placeholder="Denetim ile ilgili ek notlar..."
+            />
+          </div>
+
+          {/* Selected Equipment Details */}
+          {selectedEquipment && availableEquipments[parseInt(selectedEquipment)] && (
+            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+              <h3 className="font-medium text-blue-900 mb-2">Seçilen Ekipman Detayları</h3>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-medium text-blue-800">Tip:</span>
+                  <span className="ml-2 text-blue-700">
+                    {availableEquipments[parseInt(selectedEquipment)].equipment_type || 
+                     availableEquipments[parseInt(selectedEquipment)].muayene_alt_alani || 
+                     'Belirtilmemiş'}
+                  </span>
+                </div>
+                {availableEquipments[parseInt(selectedEquipment)].serial_number && (
+                  <div>
+                    <span className="font-medium text-blue-800">Seri No:</span>
+                    <span className="ml-2 text-blue-700">{availableEquipments[parseInt(selectedEquipment)].serial_number}</span>
+                  </div>
+                )}
+                {availableEquipments[parseInt(selectedEquipment)].capacity && (
+                  <div>
+                    <span className="font-medium text-blue-800">Kapasite:</span>
+                    <span className="ml-2 text-blue-700">{availableEquipments[parseInt(selectedEquipment)].capacity}</span>
+                  </div>
+                )}
+                {availableEquipments[parseInt(selectedEquipment)].manufacturing_year && (
+                  <div>
+                    <span className="font-medium text-blue-800">İmalat Yılı:</span>
+                    <span className="ml-2 text-blue-700">{availableEquipments[parseInt(selectedEquipment)].manufacturing_year}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Submit Button */}
+        <div className="flex justify-end space-x-4">
+          <button
+            type="button"
+            onClick={onBack}
+            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+          >
+            İptal
+          </button>
+          <button
+            type="submit"
+            disabled={saving}
+            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {saving ? 'Planlanıyor...' : 'Denetimi Planla'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+// Inspection Tracking Component - Phase 5.3
+const InspectionTracking = ({ inspections, customers, inspectors, onRefresh }) => {
+  const [filter, setFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('planned_date');
+
+  // Get customer name by id
+  const getCustomerName = (customerId) => {
+    const customer = customers.find(c => c.id === customerId);
+    return customer ? customer.company_name : 'Bilinmeyen Müşteri';
+  };
+
+  // Get inspector name by id
+  const getInspectorName = (inspectorId) => {
+    const inspector = inspectors.find(i => i.id === inspectorId);
+    return inspector ? inspector.full_name : 'Bilinmeyen Denetçi';
+  };
+
+  // Filter and sort inspections
+  const filteredInspections = inspections
+    .filter(inspection => {
+      if (filter !== 'all' && inspection.status !== filter) return false;
+      if (searchTerm) {
+        const customerName = getCustomerName(inspection.customer_id).toLowerCase();
+        const inspectorName = getInspectorName(inspection.inspector_id).toLowerCase();
+        const searchLower = searchTerm.toLowerCase();
+        return customerName.includes(searchLower) || inspectorName.includes(searchLower);
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'planned_date') {
+        return new Date(a.planned_date) - new Date(b.planned_date);
+      }
+      return 0;
+    });
+
+  // Get overdue inspections (planned date is in the past and status is still beklemede or devam_ediyor)
+  const overdueInspections = inspections.filter(inspection => {
+    const plannedDate = new Date(inspection.planned_date);
+    const today = new Date();
+    return plannedDate < today && ['beklemede', 'devam_ediyor'].includes(inspection.status);
+  });
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'beklemede': return 'bg-yellow-100 text-yellow-800';
+      case 'devam_ediyor': return 'bg-blue-100 text-blue-800';
+      case 'rapor_yazildi': return 'bg-green-100 text-green-800';
+      case 'onaylandi': return 'bg-emerald-100 text-emerald-800';
+      case 'reddedildi': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusText = (status) => {
+    switch (status) {
+      case 'beklemede': return 'Beklemede';
+      case 'devam_ediyor': return 'Devam Ediyor';
+      case 'rapor_yazildi': return 'Rapor Yazıldı';
+      case 'onaylandi': return 'Onaylandı';
+      case 'reddedildi': return 'Reddedildi';
+      default: return 'Bilinmeyen';
+    }
+  };
+
+  const isOverdue = (inspection) => {
+    const plannedDate = new Date(inspection.planned_date);
+    const today = new Date();
+    return plannedDate < today && ['beklemede', 'devam_ediyor'].includes(inspection.status);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Overdue Warning */}
+      {overdueInspections.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <svg className="w-5 h-5 text-red-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+            </svg>
+            <h3 className="text-red-800 font-medium">
+              Gecikmeli Denetim Uyarısı: {overdueInspections.length} adet denetim süresi geçmiş
+            </h3>
+          </div>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Durum Filtresi</label>
+            <select
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+            >
+              <option value="all">Tümü</option>
+              <option value="beklemede">Beklemede</option>
+              <option value="devam_ediyor">Devam Eden</option>
+              <option value="rapor_yazildi">Rapor Yazıldı</option>
+              <option value="onaylandi">Onaylandı</option>
+              <option value="reddedildi">Reddedildi</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Arama</label>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Müşteri veya denetçi ara..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Sıralama</label>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+            >
+              <option value="planned_date">Planlanan Tarihe Göre</option>
+              <option value="created_at">Oluşturma Tarihine Göre</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Inspections List */}
+      <div className="bg-white rounded-xl shadow-sm">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Denetimler ({filteredInspections.length})
+            </h3>
+            <button
+              onClick={onRefresh}
+              className="px-3 py-2 text-blue-600 hover:text-blue-800"
+            >
+              🔄 Yenile
+            </button>
+          </div>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Müşteri</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ekipman</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Denetçi</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Planlanan Tarih</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Durum</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">İşlemler</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredInspections.map((inspection) => (
+                <tr key={inspection.id} className={isOverdue(inspection) ? 'bg-red-50' : ''}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">
+                      {getCustomerName(inspection.customer_id)}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      {inspection.equipment_info?.equipment_type || 'Genel Ekipman'}
+                    </div>
+                    {inspection.equipment_info?.serial_number && (
+                      <div className="text-sm text-gray-500">SN: {inspection.equipment_info.serial_number}</div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {getInspectorName(inspection.inspector_id)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {new Date(inspection.planned_date).toLocaleDateString('tr-TR')}
+                    {isOverdue(inspection) && (
+                      <div className="text-xs text-red-600 font-medium">Süre Geçmiş</div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(inspection.status)}`}>
+                      {getStatusText(inspection.status)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <button className="text-blue-600 hover:text-blue-900 mr-3">Görüntüle</button>
+                    <button className="text-indigo-600 hover:text-indigo-900">Düzenle</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {filteredInspections.length === 0 && (
+          <div className="text-center py-12">
+            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+            </svg>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">Denetim bulunamadı</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              {filter === 'all' ? 'Henüz denetim planlanmamış' : 'Bu filtreye uygun denetim bulunamadı'}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const PlanlamaDashboard = () => {
   const [stats, setStats] = useState({});
   const [customers, setCustomers] = useState([]);

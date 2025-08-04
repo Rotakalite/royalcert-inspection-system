@@ -1439,8 +1439,9 @@ async def upload_template_document(
                 "id": template_data["id"],
                 "name": template_data["name"],
                 "equipment_type": template_data["equipment_type"],
+                "template_type": template_data["template_type"],
                 "total_items": template_data["total_items"],
-                "categories": template_data["categories"]
+                "categories": len(template_data["categories"])
             }
         }
         

@@ -685,12 +685,19 @@ const AdminDashboard = () => {
 
       const { results } = response.data;
       
-      let message = `Toplu yükleme tamamlandı!\n`;
-      message += `✅ Başarılı: ${results.successful.length}\n`;
-      message += `❌ Başarısız: ${results.failed.length}`;
+      let message = `🚀 Toplu Template Yükleme Tamamlandı!\n\n`;
+      message += `✅ Başarılı: ${results.successful.length} template\n`;
+      message += `❌ Başarısız: ${results.failed.length} dosya\n`;
+      
+      if (results.successful.length > 0) {
+        message += `\n📋 Yüklenen Template'ler:\n`;
+        results.successful.forEach(success => {
+          message += `• ${success.name} (${success.equipment_type}) - ${success.total_items || 0} madde\n`;
+        });
+      }
       
       if (results.failed.length > 0) {
-        message += `\n\nBaşarısız dosyalar:\n`;
+        message += `\n❌ Başarısız Dosyalar:\n`;
         results.failed.forEach(failure => {
           message += `• ${failure.filename}: ${failure.error}\n`;
         });

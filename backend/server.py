@@ -1948,23 +1948,23 @@ def extract_control_items(text: str, tables: list) -> list:
         item_number = int(match[0])
         item_text = match[1].strip()
         
-        # Smart category determination based on typical equipment inspection structure
-        if item_number <= 12:
-            current_category = 'A'  # Usually control/cabin systems
-        elif item_number <= 20:
-            current_category = 'B'  # Usually movement/drive systems  
-        elif item_number <= 27:
-            current_category = 'C'  # Usually indicators/warnings
-        elif item_number <= 35:
-            current_category = 'D'  # Usually braking systems
-        elif item_number <= 42:
-            current_category = 'E'  # Usually lifting/chains
+        # Smart category determination - UPDATED FOR ALL 53 ITEMS
+        if item_number <= 8:
+            current_category = 'A'  # Control systems
+        elif item_number <= 16:
+            current_category = 'B'  # Movement systems  
+        elif item_number <= 24:
+            current_category = 'C'  # Indicators/warnings
+        elif item_number <= 32:
+            current_category = 'D'  # Braking systems
+        elif item_number <= 40:
+            current_category = 'E'  # Lifting/chains
         elif item_number <= 48:
-            current_category = 'F'  # Usually forks/attachments
-        elif item_number <= 55:
-            current_category = 'G'  # Usually fuel/emissions
+            current_category = 'F'  # Forks/attachments
+        elif item_number <= 53:
+            current_category = 'G'  # Final control items (49-53)
         else:
-            current_category = 'H'  # Usually other controls/safety
+            current_category = 'H'  # Any extra items beyond 53
         
         control_items.append({
             "id": item_number,

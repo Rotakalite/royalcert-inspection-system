@@ -1599,6 +1599,12 @@ async def upload_template_document(
         # Parse Word document
         template_data = parse_word_document(file_content, file.filename)
         
+        # DEBUG: Check what fields are in template_data
+        print(f"DEBUG: template_data keys: {list(template_data.keys())}")
+        print(f"DEBUG: Has general_info: {'general_info' in template_data}")
+        print(f"DEBUG: Has control_items: {'control_items' in template_data}")
+        print(f"DEBUG: Has categories_dict: {'categories_dict' in template_data}")
+        
         # Add metadata
         template_data["id"] = str(uuid.uuid4())
         template_data["created_by"] = current_user.id

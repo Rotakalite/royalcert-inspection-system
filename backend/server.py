@@ -1487,23 +1487,31 @@ def parse_word_document(file_content: bytes, filename: str) -> dict:
     # DYNAMIC PARSING - Formda ne varsa o!
     print("DEBUG: Starting DYNAMIC parsing - NO LIMITS!")
     
-    # 1. TÜM NUMARALI ITEMLERI BUL - HİÇBİR SINIR YOK!
+    # 1. TÜM NUMARALI ITEMLERI BUL - HİÇBİR SINIR YOK! - GÜÇLENDİRİLMİŞ REGEX
     numbered_items = {}
     
-    # Pattern 1: Normal numbered items (1., 2., 3., etc.)
-    pattern1 = r'(?:^|\n|\r)\s*(\d+)\s*[.\.)]\s*([^\n\r]+)'
+    # Pattern 1: Normal numbered items (1., 2., 3., etc.) - More flexible
+    pattern1 = r'(?:^|\n|\r|\s)\s*(\d+)[\s]*[.\)]\s*([^\n\r]+?)(?=\n|\r|$)'
     matches1 = re.findall(pattern1, text_content, re.MULTILINE | re.IGNORECASE)
     
-    # Pattern 2: Table row patterns (ROW1: 1. item_text)
-    pattern2 = r'ROW\d+:\s*(\d+)\s*[.\.)]\s*([^|\n\r]+)'
+    # Pattern 2: Table row patterns (ROW1: 1. item_text) 
+    pattern2 = r'ROW\d+:\s*(\d+)\s*[.\)]\s*([^|\n\r]+)'
     matches2 = re.findall(pattern2, text_content, re.MULTILINE | re.IGNORECASE)
     
     # Pattern 3: Dash or space separated (1 - item_text, 1 item_text)
     pattern3 = r'(?:^|\n|\r)\s*(\d+)\s*[-–—]\s*([^\n\r]+)'
     matches3 = re.findall(pattern3, text_content, re.MULTILINE | re.IGNORECASE)
     
-    all_matches = matches1 + matches2 + matches3
-    print(f"DEBUG: Found {len(all_matches)} total numbered items")
+    # Pattern 4: Simple space separated (1 text, 2 text) - Türkçe PDF'ler için
+    pattern4 = r'(?:^|\n|\r)\s*(\d+)\s+([A-Za-zÇĞıİÖŞÜçğıiöşü][^\n\r\d]*?)(?=\s*\d+|\n|\r|$)'
+    matches4 = re.findall(pattern4, text_content, re.MULTILINE | re.IGNORECASE)
+    
+    # Pattern 5: PDF table cell format - common in Turkish forms
+    pattern5 = r'(\d+)[\s]*[.\)]?[\s]*([A-Za-zÇĞıİÖŞÜçğıiöşü][^\n\r]{10,200}?)(?=\s*\d+[\s]*[.\)]|\n|\r|$)'
+    matches5 = re.findall(pattern5, text_content, re.MULTILINE | re.IGNORECASE)
+    
+    all_matches = matches1 + matches2 + matches3 + matches4 + matches5
+    print(f"DEBUG: Pattern matching results: {len(matches1)} + {len(matches2)} + {len(matches3)} + {len(matches4)} + {len(matches5)} = {len(all_matches)} total")
     
     for match in all_matches:
         try:

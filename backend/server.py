@@ -2083,7 +2083,7 @@ async def upload_template_document(
         # Choose parser based on file type
         if file.filename.endswith('.pdf'):
             print("DEBUG: Using PDF parser")
-            template_data = parse_pdf_document_dynamic(file_content, file.filename)
+            template_data = extract_template_fields_from_word(file_content, file.filename)
         else:
             print("DEBUG: Using Word parser")
             template_data = parse_word_document(file_content, file.filename)

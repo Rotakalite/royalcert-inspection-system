@@ -1056,8 +1056,6 @@ async def get_inspection(inspection_id: str, current_user: User = Depends(get_cu
         raise HTTPException(status_code=404, detail="Inspection not found")
     return Inspection(**inspection)
 
-# ===================== DASHBOARD STATS =====================
-
 # ===================== INSPECTION APPROVAL (TEKNİK YÖNETİCİ) =====================
 
 @app.get("/api/inspections/pending-approval", response_model=List[Inspection])
@@ -1096,6 +1094,8 @@ async def approve_inspection(
     
     updated_inspection = await db.inspections.find_one({"id": inspection_id})
     return Inspection(**updated_inspection)
+
+# ===================== DASHBOARD STATS =====================
 
 # ===================== INSPECTION UPDATE (DENETÇİ) =====================
 
